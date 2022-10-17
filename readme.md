@@ -24,6 +24,9 @@ This is a modernized replacement for the native Home Assistant component.
 - [x] It works in HA version > 2022.7
 - [x] Supports ESP32 Bluetooth proxies
 - [x] Supports auto discovery
+- [x] Supports adding via config flow (UI)
+- [x] Fixes setting operation mode
+- [x] Allows to turn off by setting temp to 4.5°
 - [x] Retries (10 times) when you change a thermostat attribute.
 - [x] Push instead of Pull. It updates on bluetooth advertisement instead of polling every x minutes (seems to generate less unsuccessful tries)
 - [x] Connections are persistent (this may or may not reduce the battery life, but it makes the thermostats more responsive)
