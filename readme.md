@@ -4,18 +4,33 @@
 
 This is a modernized replacement for the native Home Assistant component.
 
-### Differences with the original one:
+### Installation
 
-[x] It works in HA version > 2022.7
-[x] Supports ESP32 Bluetooth proxies
-[x] Suppoorts auto discovery
-[x] Retries (10 times) when you change a thermostat attribute.
-[x] Push instead of Pull. It updates on bluetooth advertisment instead of polling every x minutes (seems to generate less unsuccessful tries)
-[x] Connections are persistent (this may or may not reduce the battery life, but it makes the thermostats more responsive)
-[x] Fully uses asyncio (less resource intensive)
-[x] `Current Temperature` updates immediately, regardless of when the bluetooth connection is made. The component will apply the change as soon as it can connect with the device.
-[x] Service to fetch the heating schedules inside the thermostat
-[ ] Service to set the heating schedules (Work in progress)
+1. HACS > Integrations > ⋮ > Custom Repositories
+2. Repository: paste the url of this repo
+3. Category: Integration
+4. Click "Add"
+5. Close "Custom Repositories" modal
+6. Click "+ EXPLORE & DOWNLOAD REPOSITORIES"
+7. Search for eq3btsmart
+8. Click Download
+9. Restart Home Assistant
+10. Go to Settings > Integrations
+11. Either wait for autodiscovery, or click "+ ADD INTEGRATION" and search for "dbuezas_eq3btsmart"
+12. Addition will succeed immediately, give it some minutes to connect to the thermostat
+
+### Differences with the original component:
+
+- [x] It works in HA version > 2022.7
+- [x] Supports ESP32 Bluetooth proxies
+- [x] Supports auto discovery
+- [x] Retries (10 times) when you change a thermostat attribute.
+- [x] Push instead of Pull. It updates on bluetooth advertisement instead of polling every x minutes (seems to generate less unsuccessful tries)
+- [x] Connections are persistent (this may or may not reduce the battery life, but it makes the thermostats more responsive)
+- [x] Fully uses asyncio (less resource intensive)
+- [x] `Current Temperature` updates immediately, regardless of when the bluetooth connection is made. The component will apply the change as soon as it can connect with the device.
+- [x] Service to fetch heating schedules and serial inside the thermostat
+- [ ] Service to set the heating schedules (Work in progress)
 
 ### Pairing issues
 
