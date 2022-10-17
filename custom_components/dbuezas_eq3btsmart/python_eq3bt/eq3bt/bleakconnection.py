@@ -96,6 +96,7 @@ class BleakConnection:
                 await conn.write_gatt_char(handle, value)
                 await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
                 await conn.stop_notify(self._notification_handle)
+                await conn.disconnect()
                 break
 
             except Exception as ex:

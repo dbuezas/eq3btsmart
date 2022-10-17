@@ -1,16 +1,5 @@
 """Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
 
-# My changes:
-# * current temperature now reports the temperature that we are trying to set
-# * added retry
-
-
-# rm -rf ~/code/HA_Backup/custom_components/dbuezas_eq3btsmart &&\
-# cp -r ~/code/core/config/custom_components/dbuezas_eq3btsmart ~/code/HA_Backup/custom_components/dbuezas_eq3btsmart &&\
-# git -C ~/code/HA_Backup add custom_components/dbuezas_eq3btsmart &&\
-# git -C ~/code/HA_Backup commit &&\
-# git -C ~/code/HA_Backup push
-
 from __future__ import annotations
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD
@@ -348,8 +337,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     async def fetch_serial(self):
         await self._thermostat.async_query_id()
         self.async_schedule_update_ha_state(force_refresh=True)
-        _LOGGER.debug("[%s] serial: %s", self._name,
-                      self._thermostat.device_serial)
+        _LOGGER.debug("[%s] serial: %s", self._name, self._thermostat.device_serial)
 
     async def fetch_schedule(self):
         _LOGGER.debug("[%s] fetch_schedule", self._name)
