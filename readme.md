@@ -4,6 +4,7 @@
 
 This is a modernized replacement for the native Home Assistant component.
 
+[Home Assistant Forum Post](https://community.home-assistant.io/t/eq3-bt-smart-thermostat-working-with-v-2022-7/476620)
 ## Installation
 
 ### Option 1: [HACS](https://hacs.xyz/)
