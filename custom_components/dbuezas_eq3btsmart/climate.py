@@ -204,7 +204,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     def __init__(self, _mac: str, _name: str, _hass: HomeAssistant):
         """Initialize the thermostat."""
         # We want to avoid name clash with this module.
-        self._hass = _hass
+        self.hass = _hass
         self._name = _name
         self._mac = _mac
         self._ui_target_temperature = None
