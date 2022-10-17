@@ -1,6 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-# EQ3 Bluetooth smart
+# EQ3 Bluetooth Smart Thermostat
 
 This is a modernized replacement for the native Home Assistant component.
 
@@ -43,6 +43,7 @@ This is a modernized replacement for the native Home Assistant component.
 - [x] Fully uses asyncio (less resource intensive)
 - [x] `Current Temperature` updates immediately, regardless of when the bluetooth connection is made. The component will apply the change as soon as it can connect with the device.
 - [x] Service to fetch heating schedules and serial inside the thermostat
+- [x] Only one concurrent request per thermostat
 - [ ] Service to set the heating schedules (Work in progress)
 - [ ] No support for installing via yaml
 

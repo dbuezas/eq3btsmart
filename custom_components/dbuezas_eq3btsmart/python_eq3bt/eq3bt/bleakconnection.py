@@ -41,6 +41,7 @@ class BleakConnection:
         self._notification_handle = notification_handle
         self._notifyevent = asyncio.Event()
         self.ble_device = None
+        self._lock = asyncio.Lock()
 
     @property
     def rssi(self):
@@ -86,23 +87,26 @@ class BleakConnection:
 
     async def async_make_request(self, handle: int, value):
         """Write a GATT Command without callback - not utf-8."""
-        i = 0
-        while True:
-            i += 1
-            try:
-                conn = await self.async_get_connection()
-                self._notifyevent.clear()
-                await conn.start_notify(self._notification_handle, self.on_notification)
-                await conn.write_gatt_char(handle, value)
-                await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
-                await conn.stop_notify(self._notification_handle)
-                # await conn.disconnect()
-                break
+        async with self._lock:  # only one concurrent request per thermostat
+            i = 0
+            while True:
+                i += 1
+                try:
+                    conn = await self.async_get_connection()
+                    self._notifyevent.clear()
+                    await conn.start_notify(
+                        self._notification_handle, self.on_notification
+                    )
+                    await conn.write_gatt_char(handle, value)
+                    await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
+                    await conn.stop_notify(self._notification_handle)
+                    # await conn.disconnect()
+                    break
 
-            except Exception as ex:
-                _LOGGER.debug(
-                    "[%s][%s/%s] BLE Request error: %s", self._name, i, RETRIES, ex
-                )
-                if i == RETRIES:
-                    raise ex
-                await asyncio.sleep(5)
+                except Exception as ex:
+                    _LOGGER.debug(
+                        "[%s][%s/%s] BLE Request error: %s", self._name, i, RETRIES, ex
+                    )
+                    if i == RETRIES:
+                        raise ex
+                    await asyncio.sleep(5)
