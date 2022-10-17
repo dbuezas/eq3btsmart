@@ -12,6 +12,34 @@
 # git -C ~/code/HA_Backup push
 
 from __future__ import annotations
+from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
+from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers import entity_platform, service
+from homeassistant.helpers import config_validation as cv
+from homeassistant.components import bluetooth
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    CONF_DEVICES,
+    CONF_MAC,
+    PRECISION_HALVES,
+    TEMP_CELSIUS,
+)
+from homeassistant.components.climate.const import (
+    HVAC_MODE_AUTO,
+    HVAC_MODE_HEAT,
+    HVAC_MODE_OFF,
+    PRESET_AWAY,
+    PRESET_BOOST,
+    PRESET_NONE,
+    SUPPORT_PRESET_MODE,
+    SUPPORT_TARGET_TEMPERATURE,
+)
+from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+import voluptuous as vol
 
 from datetime import date, datetime, time, timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
@@ -40,36 +68,6 @@ def json_serial(obj):
     # raise TypeError ("Type %s not serializable" % type(obj))
     return None
 
-
-import voluptuous as vol
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import (
-    HVAC_MODE_AUTO,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,
-    PRESET_AWAY,
-    PRESET_BOOST,
-    PRESET_NONE,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
-)
-from homeassistant.const import (
-    ATTR_TEMPERATURE,
-    CONF_DEVICES,
-    CONF_MAC,
-    PRECISION_HALVES,
-    TEMP_CELSIUS,
-)
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.components import bluetooth
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import entity_platform, service
-from homeassistant.helpers.device_registry import format_mac
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-
-from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD
-from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -139,6 +137,8 @@ SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
 
 # This function is called as part of the __init__.async_setup_entry (via the
 # hass.config_entries.async_forward_entry_setup call)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -348,7 +348,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
     async def fetch_serial(self):
         await self._thermostat.async_query_id()
         self.async_schedule_update_ha_state(force_refresh=True)
-        _LOGGER.debug("[%s] serial: %s", self._name, self._thermostat.device_serial)
+        _LOGGER.debug("[%s] serial: %s", self._name,
+                      self._thermostat.device_serial)
 
     async def fetch_schedule(self):
         _LOGGER.debug("[%s] fetch_schedule", self._name)
