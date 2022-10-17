@@ -1,0 +1,13 @@
+{
+  "domain": "dbuezas_eq3btsmart",
+  "name": "dbuezas EQ3 Bluetooth Smart Thermostats",
+  "documentation": "https://www.home-assistant.io/integrations/eq3btsmart",
+  "requirements": ["construct==2.10.56"],
+  "dependencies": ["bluetooth"],
+  "codeowners": ["@rytilahti"],
+  "iot_class": "local_polling",
+  "loggers": ["bleak", "eq3bt"],
+  "version": "1.0.0",
+  "config_flow": true,
+  "bluetooth": [{ "service_uuid": "3e135142-654f-9090-134a-a6ff5bb77046" }, { "local_name": "CC-RT-BLE" }]
+}

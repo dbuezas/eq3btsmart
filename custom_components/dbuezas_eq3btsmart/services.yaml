@@ -1,0 +1,136 @@
+fetch_serial:
+  name: Fetch EQ3 Serial Number
+  description: Fetches the serial number and firmware version and stores it as an attribute
+  target:
+    entity:
+      integration: dbuezas_eq3btsmart
+fetch_schedule:
+  name: Fetch EQ3 Schedule
+  description: Fetches the internal schedule and stores it as an attribute
+  target:
+    entity:
+      integration: dbuezas_eq3btsmart
+  fields:
+set_schedule:
+  name: Set EQ3 Schedule
+  description: Sets the internal schedule
+  target:
+    entity:
+      integration: dbuezas_eq3btsmart
+  fields:
+    day:
+      name: Day
+      required: true
+      example: sat
+      selector:
+        select:
+          options:
+            - sat
+            - sun
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - week-days
+            - weekend-days
+    base_temp:
+      name: Base Temp
+      required: true
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C
+    next_change_at_1:
+      name: Until
+      required: true
+      default: "08:00:00"
+      selector:
+        time:
+
+    target_temp_1:
+      name: Target Temp
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C
+    next_change_at_2:
+      name: Until
+      default: "08:00:00"
+      selector:
+        time:
+    target_temp_2:
+      name: Target Temp
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C
+
+    next_change_at_3:
+      name: Until
+      default: "08:00:00"
+      selector:
+        time:
+    target_temp_3:
+      name: Target Temp
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C
+
+    next_change_at_4:
+      name: Until
+      default: "08:00:00"
+      selector:
+        time:
+    target_temp_4:
+      name: Target Temp
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C
+
+    next_change_at_5:
+      name: Until
+      default: "08:00:00"
+      selector:
+        time:
+    target_temp_5:
+      name: Target Temp
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C
+
+    next_change_at_6:
+      name: Until
+      default: "08:00:00"
+      selector:
+        time:
+    target_temp_6:
+      name: Target Temp
+      default: 18
+      selector:
+        number:
+          min: 4.5
+          max: 29.5
+          step: 0.5
+          unit_of_measurement: °C

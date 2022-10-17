@@ -1,0 +1,27 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
+    },
+    "flow_title": "{name} [{mac}] {rssi}dB",
+    "step": {
+      "user": {
+        "title": "Fill in your EQ3 information",
+        "data": {
+          "name": "Name given to the thermostat",
+          "mac": "MAC address"
+        }
+      },
+      "init": {
+        "title": "Fill in your EQ3 information",
+        "description": "{name} [{mac}] {rssi}dB",
+        "data": {
+          "name": "Name given to the thermostat"
+        }
+      }
+    }
+  }
+}
