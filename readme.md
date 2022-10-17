@@ -4,20 +4,30 @@
 
 This is a modernized replacement for the native Home Assistant component.
 
-### Installation
+## Installation
 
-1. HACS > Integrations > ⋮ > Custom Repositories
-2. Repository: paste the url of this repo
-3. Category: Integration
-4. Click "Add"
-5. Close "Custom Repositories" modal
-6. Click "+ EXPLORE & DOWNLOAD REPOSITORIES"
-7. Search for eq3btsmart
-8. Click Download
-9. Restart Home Assistant
-10. Go to Settings > Integrations
-11. Either wait for autodiscovery, or click "+ ADD INTEGRATION" and search for "dbuezas_eq3btsmart"
-12. Addition will succeed immediately, give it some minutes to connect to the thermostat
+### Option 1: [HACS](https://hacs.xyz/)
+
+1. `HACS` > `Integrations` > `⋮` > `Custom Repositories`
+2. `Repository`: paste the url of this repo
+3. `Category`: Integration
+4. Click `Add`
+5. Close `Custom Repositories` modal
+6. Click `+ EXPLORE & DOWNLOAD REPOSITORIES`
+7. Search for `dbuezas_eq3btsmart`
+8. Click `Download`
+9. Restart _Home Assistant_
+
+### Option 2: Manual copy
+
+1. Copy the `dbuezas_eq3btsmart` folder inside `custom_components` of this repo to `/config/custom_components` in your Home Assistant instance
+2. Restart _Home Assistant_
+
+## Adding devices
+
+1. Go to `Settings` > `Integrations`
+2. Either wait for automatic discovery, or click `+ ADD INTEGRATION` and search for `dbuezas_eq3btsmart`
+3. Addition will succeed immediately, so give the entity some minutes to connect to the thermostat
 
 ### Differences with the original component:
 
@@ -42,6 +52,6 @@ see https://github.com/rytilahti/python-eq3bt/issues/41
 
 ### Credits
 
-This is a derivate of https://github.com/rytilahti/python-eq3bt, and it should be PR instead.
-Unfortunately, I had to change the code too much and had to remove support for the CLI and other backends. Also, the update requires a PR to Home Assistant to work.
-So I decided to upload this here so others can make use of their thermostats quickly.
+This is heavily based on https://github.com/rytilahti/python-eq3bt and the EQ3Smart component inside Home Assistant's core, and it should ideally be PR instead.
+Unfortunately, the changes go too deep and I had to remove support for the CLI and other backends. The update even requires a PR to Home Assistant core to work.
+Therefore, here's a self contained custom component instead.
