@@ -41,6 +41,6 @@ see https://github.com/rytilahti/python-eq3bt/issues/41
 
 ### Credits
 
-This is a derivate from https://github.com/rytilahti/python-eq3bt, and it should actually be PR instead.
-Unfortunately, I had to change it too much and had to remove support for the CLI and other backends. Also, the update requires a PR to Home Assistant to work.
+This is a derivate of https://github.com/rytilahti/python-eq3bt, and it should be PR instead.
+Unfortunately, I had to change the code too much and had to remove support for the CLI and other backends. Also, the update requires a PR to Home Assistant to work.
 So I decided to upload this here so others can make use of their thermostats quickly.
