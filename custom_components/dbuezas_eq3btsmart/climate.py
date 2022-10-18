@@ -198,9 +198,13 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._mac = _mac
         self._ui_target_temperature = None
         self._is_setting_temperature = False
-        self._thermostat = eq3.Thermostat(_mac, _name, _hass)
+        self._thermostat = eq3.Thermostat(
+            _mac,
+            _name,
+            _hass,
+            lambda: self.schedule_update_ha_state(force_refresh=False),
+        )
         self._skip_next_update = False
-        self._loop = asyncio.new_event_loop()
 
     def set_ble_device(self, ble_device: BLEDevice):
         self._thermostat.set_ble_device(ble_device)
@@ -384,6 +388,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Update the data from the thermostat."""
         if self._skip_next_update:
             self._skip_next_update = False
+            _LOGGER.debug("[%s] skipped update")
+
         else:
             await self._async_thermostat_update()
         if self._is_setting_temperature:

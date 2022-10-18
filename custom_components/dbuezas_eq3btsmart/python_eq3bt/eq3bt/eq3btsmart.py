@@ -13,6 +13,7 @@ import struct
 from datetime import datetime, timedelta
 from enum import IntEnum
 from bleak.backends.device import BLEDevice
+from typing import Callable
 
 from construct import Byte
 
@@ -73,11 +74,18 @@ class TemperatureException(Exception):
 class Thermostat:
     """Representation of a EQ3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _mac: str, _name: str, _hass: HomeAssistant):
+    def __init__(
+        self,
+        _mac: str,
+        _name: str,
+        _hass: HomeAssistant,
+        _on_update: Callable[[], None],
+    ):
         """Initialize the thermostat."""
 
         self._target_temperature = Mode.Unknown
         self._name = _name
+        self._on_update = _on_update
         self._mode = Mode.Unknown
         self._valve_state = Mode.Unknown
         self._raw_mode = None
@@ -195,6 +203,7 @@ class Thermostat:
             _LOGGER.debug(
                 "[%s] Temp offset:      %s", self._name, self._temperature_offset
             )
+            self._on_update()
 
         elif data[0] == PROP_SCHEDULE_RETURN:
             parsed = self.parse_schedule(data)
