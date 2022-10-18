@@ -41,7 +41,7 @@ from homeassistant.config_entries import ConfigEntry
 
 from bleak.backends.device import BLEDevice
 
-# SCAN_INTERVAL = timedelta(minutes=15)
+SCAN_INTERVAL = timedelta(minutes=15)
 # PARALLEL_UPDATES = 0
 
 import asyncio
@@ -206,8 +206,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._thermostat.set_ble_device(ble_device)
         self.schedule_update_ha_state(force_refresh=True)
 
-    def should_poll(self):
-        return False
+    # def should_poll(self):
+    #     return False
 
     @property
     def supported_features(self):
