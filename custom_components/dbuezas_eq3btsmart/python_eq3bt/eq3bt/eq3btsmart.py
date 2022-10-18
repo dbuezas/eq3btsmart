@@ -529,4 +529,4 @@ class Thermostat:
     @property
     def mac(self):
         """Return the mac address."""
-        return self._conn.mac
+        return self._conn._mac

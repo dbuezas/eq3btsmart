@@ -151,9 +151,7 @@ async def async_setup_entry(
 
     platform.async_register_entity_service(
         "fetch_schedule",
-        {
-            vol.Optional("day"): vol.All(vol.Coerce(int), vol.Clamp(min=0, max=6)),
-        },
+        {},
         EQ3BTSmartThermostat.fetch_schedule.__name__,
     )
     platform.async_register_entity_service(
@@ -388,7 +386,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Update the data from the thermostat."""
         if self._skip_next_update:
             self._skip_next_update = False
-            _LOGGER.debug("[%s] skipped update")
+            _LOGGER.debug("[%s] skipped update", self.name)
 
         else:
             await self._async_thermostat_update()
