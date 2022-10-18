@@ -2,7 +2,7 @@
 
 # EQ3 Bluetooth Smart Thermostat
 
-This is a modernized replacement for the native Home Assistant component.
+A modernized temporary replacement for the native Home Assistant component.
 
 [Home Assistant Forum Post](https://community.home-assistant.io/t/eq3-bt-smart-thermostat-working-with-v-2022-7/476620)
 ## Installation
@@ -54,6 +54,6 @@ see https://github.com/rytilahti/python-eq3bt/issues/41
 
 ### Credits
 
-This is heavily based on https://github.com/rytilahti/python-eq3bt and the EQ3Smart component inside Home Assistant's core, and it should ideally be PR instead.
-Unfortunately, the changes go too deep and I had to remove support for the CLI and other backends. The update even requires a PR to Home Assistant core to work.
+This is heavily based on https://github.com/rytilahti/python-eq3bt and https://github.com/home-assistant/core/tree/dev/homeassistant/components/eq3btsmart and it should ideally be two PRs instead.
+Unfortunately, the changes go too deep and remove support for the CLI and other backends.
 Therefore, here's a self contained custom component instead.
