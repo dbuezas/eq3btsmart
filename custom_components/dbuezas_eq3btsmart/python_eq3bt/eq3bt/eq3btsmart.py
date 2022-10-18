@@ -292,10 +292,10 @@ class Thermostat:
         _LOGGER.debug("[%s] Setting new mode: %s", self._name, mode)
 
         if self.mode == Mode.Boost and mode != Mode.Boost:
-            self.boost = False
+            await self.async_set_boost(False)
 
         if mode == Mode.Boost:
-            self.boost = True
+            await self.async_set_boost(True)
             return
         elif mode == Mode.Away:
             end = datetime.now() + self._away_duration
