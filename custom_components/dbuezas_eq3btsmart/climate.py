@@ -30,10 +30,8 @@ from homeassistant.components.climate.const import (
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
 import voluptuous as vol
 
-from datetime import date, datetime, time, timedelta
+from datetime import time, timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
-    Thermostat,
-    EQ3BT_MIN_TEMP,
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
 )
@@ -41,13 +39,11 @@ from homeassistant.config_entries import ConfigEntry
 
 from bleak.backends.device import BLEDevice
 
-SCAN_INTERVAL = timedelta(minutes=10)
+SCAN_INTERVAL = timedelta(minutes=5)
 # PARALLEL_UPDATES = 0
 
-import asyncio
 import json
 import logging
-import time as the_time
 
 
 def json_serial(obj):
@@ -140,8 +136,9 @@ async def async_setup_entry(
     async_add_entities(
         # devices, update_before_add=False
         devices,
-        update_before_add=True,
-    )  # True means update right after init
+        # If update_before_add=True, then the entity is removed if it cant connect on boot
+        update_before_add=False,
+    )
 
     platform = entity_platform.async_get_current_platform()
 
@@ -162,22 +159,22 @@ async def async_setup_entry(
         EQ3BTSmartThermostat.set_schedule.__name__,
     )
 
-    @callback
-    def _async_discovered_device(
-        service_info: bluetooth.BluetoothServiceInfoBleak,
-        change: bluetooth.BluetoothChange,
-    ) -> None:
-        """Subscribe to bluetooth changes."""
-        eq3.set_ble_device(service_info.device)
+    # @callback
+    # def _async_discovered_device(
+    #     service_info: bluetooth.BluetoothServiceInfoBleak,
+    #     change: bluetooth.BluetoothChange,
+    # ) -> None:
+    #     """Subscribe to bluetooth changes."""
+    #     eq3.set_ble_device(service_info.device)
 
-    entry.async_on_unload(
-        bluetooth.async_register_callback(
-            hass,
-            _async_discovered_device,
-            {"address": entry.data["mac"], "connectable": True},
-            bluetooth.BluetoothScanningMode.ACTIVE,
-        )
-    )
+    # entry.async_on_unload(
+    #     bluetooth.async_register_callback(
+    #         hass,
+    #         _async_discovered_device,
+    #         {"address": entry.data["mac"], "connectable": True},
+    #         bluetooth.BluetoothScanningMode.ACTIVE,
+    #     )
+    # )
 
 
 def get_full_class_name(obj):
@@ -198,6 +195,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._mac = _mac
         self._ui_target_temperature = None
         self._is_setting_temperature = False
+        self._is_first_update = True
         self._thermostat = eq3.Thermostat(
             _mac,
             _name,
@@ -217,9 +215,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
             self._thermostat.rssi,
         )
 
-    # def should_poll(self):
-    #     return False
-
     @property
     def supported_features(self):
         """Return the list of supported features."""
@@ -228,6 +223,10 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def available(self) -> bool:
         """Return if thermostat is available."""
+        if self._is_first_update:
+            # This hack is so that the entity is kept alive even if the first update after restart fails
+            self._is_first_update = False
+            self.schedule_update_ha_state(True)
         return self._thermostat.mode >= 0
 
     @property
