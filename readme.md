@@ -5,6 +5,7 @@
 A modernized temporary replacement for the native Home Assistant component.
 
 [Home Assistant Forum Post](https://community.home-assistant.io/t/eq3-bt-smart-thermostat-working-with-v-2022-7/476620)
+
 ## Installation
 
 ### Option 1: [HACS](https://hacs.xyz/)
@@ -31,25 +32,27 @@ A modernized temporary replacement for the native Home Assistant component.
 3. Addition will succeed immediately, so give the entity some minutes to connect to the thermostat
 
 ### Pairing issues
+
 See here https://github.com/rytilahti/python-eq3bt#pairing
 
 ### Differences with the original component:
 
 - [x] It works in HA version > 2022.7
-- [x] Supports ESP32 Bluetooth proxies
+- ~~[x] Supports ESP32 Bluetooth proxies~~ Maybe if you have EQ3 firmware v1.20 (doesn't require pairing)
 - [x] Supports auto discovery
 - [x] Supports adding via config flow (UI)
 - [x] Fixes setting operation mode
 - [x] Allows to turn off by setting temp to 4.5°
 - [x] Retries (10 times) when you change a thermostat attribute.
-- [x] Push instead of Pull. It updates on bluetooth advertisement instead of polling every x minutes (seems to generate less unsuccessful tries)
+- ~~[x] Push instead of Pull. It updates on bluetooth advertisement instead of polling every x minutes (seems to generate less unsuccessful tries)~~
 - [x] Connections are persistent (this may or may not reduce the battery life, but it makes the thermostats more responsive)
 - [x] Fully uses asyncio (less resource intensive)
 - [x] `Current Temperature` updates immediately, regardless of when the bluetooth connection is made. The component will apply the change as soon as it can connect with the device.
 - [x] Service to fetch heating schedules and serial inside the thermostat
 - [x] Only one concurrent request per thermostat
 - [ ] Service to set the heating schedules (Work in progress)
-- [ ] No support for installing via yaml
+- [ ] Removed support for installing via yaml
+- [ ] Support pairing while adding entity
 
 ### Credits
 
