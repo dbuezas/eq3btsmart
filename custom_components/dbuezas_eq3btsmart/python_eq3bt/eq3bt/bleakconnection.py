@@ -17,7 +17,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 
 from . import BackendException
-import struct
 
 REQUEST_TIMEOUT = 10
 RETRIES = 10
