@@ -12,7 +12,7 @@ from bleak.backends.device import BLEDevice
 from homeassistant.components.esphome.bluetooth.characteristic import (
     BleakGATTCharacteristic,
 )
-
+from bleak_retry_connector import establish_connection
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 
@@ -40,36 +40,59 @@ class BleakConnection:
         self._callback = callback
         self._notification_handle = notification_handle
         self._notifyevent = asyncio.Event()
-        self.ble_device = None
+        self._ble_device = None
         self._lock = asyncio.Lock()
+        self._needs_start_notify = True
 
     @property
     def rssi(self):
-        if not self.ble_device:
+        if not self._ble_device:
             return None
-        return self.ble_device.rssi
+        return self._ble_device.rssi
+
+    def _on_disconnected(self, client: BleakClient) -> None:
+        """Disconnected callback."""
+        _LOGGER.debug("%s: Disconnected from device; RSSI: %s", self._name, self.rssi)
+        self._needs_start_notify = True
 
     async def async_get_connection(self):
-        if not self.ble_device:
-            self.ble_device = bluetooth.async_ble_device_from_address(
+        if not self._ble_device:
+            self._ble_device = bluetooth.async_ble_device_from_address(
                 self._hass, self._mac, connectable=True
             )
-        if self.ble_device:
-            conn = BleakClient(self.ble_device)
-        else:
+        if self._ble_device:
             _LOGGER.debug(
-                "[%s]NO ble_device",
+                "[%s] Connecting with ble_device, rssi: %s",
+                self._name,
+                self._ble_device.rssi,
+            )
+            conn = await establish_connection(
+                BleakClient,
+                self._ble_device,
+                self._name,
+                self._on_disconnected,
+                MAX_ATTEMPTS=2,  # there is a retry in the caller
+            )
+        else:
+            # todo probably unnecessary
+            _LOGGER.debug(
+                "[%s] Connecting without ble_device",
                 self._name,
             )
             conn = BleakClient(self._mac)
-        if not conn.is_connected:
-            await conn.connect(timeout=30)
-        if not conn.is_connected:
+            await conn.connect(timeout=10)
+
+        if conn.is_connected:
+            _LOGGER.debug("[%s] connected", self._name)
+            if self._needs_start_notify:
+                await conn.start_notify(self._notification_handle, self.on_notification)
+                self._needs_start_notify = False
+        else:
             raise BackendException("Can't connect")
         return conn
 
     def set_ble_device(self, ble_device: BLEDevice):
-        self.ble_device = ble_device
+        self._ble_device = ble_device
 
     async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
@@ -94,12 +117,9 @@ class BleakConnection:
                 try:
                     conn = await self.async_get_connection()
                     self._notifyevent.clear()
-                    await conn.start_notify(
-                        self._notification_handle, self.on_notification
-                    )
                     await conn.write_gatt_char(handle, value)
                     await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
-                    await conn.stop_notify(self._notification_handle)
+                    # await conn.stop_notify(self._notification_handle)
                     # await conn.disconnect()
                     break
 
