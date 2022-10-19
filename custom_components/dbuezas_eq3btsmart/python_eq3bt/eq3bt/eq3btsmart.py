@@ -119,9 +119,6 @@ class Thermostat:
             self._name, self.target_temperature, self.mode_readable, away_end
         )
 
-    def set_ble_device(self, ble_device: BLEDevice):
-        self._conn.set_ble_device(ble_device)
-
     def _verify_temperature(self, temp):
         """Verifies that the temperature is valid.
         :raises TemperatureException: On invalid temperature.

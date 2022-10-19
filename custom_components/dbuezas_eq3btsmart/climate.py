@@ -159,30 +159,6 @@ async def async_setup_entry(
         EQ3BTSmartThermostat.set_schedule.__name__,
     )
 
-    # @callback
-    # def _async_discovered_device(
-    #     service_info: bluetooth.BluetoothServiceInfoBleak,
-    #     change: bluetooth.BluetoothChange,
-    # ) -> None:
-    #     """Subscribe to bluetooth changes."""
-    #     eq3.set_ble_device(service_info.device)
-
-    # entry.async_on_unload(
-    #     bluetooth.async_register_callback(
-    #         hass,
-    #         _async_discovered_device,
-    #         {"address": entry.data["mac"], "connectable": True},
-    #         bluetooth.BluetoothScanningMode.ACTIVE,
-    #     )
-    # )
-
-
-def get_full_class_name(obj):
-    module = obj.__class__.__module__
-    if module is None or module == str.__class__.__module__:
-        return obj.__class__.__name__
-    return module + "." + obj.__class__.__name__
-
 
 class EQ3BTSmartThermostat(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
@@ -203,17 +179,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
             lambda: self.schedule_update_ha_state(force_refresh=False),
         )
         self._skip_next_update = False
-
-    def set_ble_device(self, ble_device: BLEDevice):
-
-        self._thermostat.set_ble_device(ble_device)
-        # self.schedule_update_ha_state(force_refresh=True)
-        _LOGGER.debug(
-            "[%s] new ble_device ble_device.rssi: %s self._thermostat.rssi: %s",
-            self.name,
-            ble_device.rssi,
-            self._thermostat.rssi,
-        )
 
     @property
     def supported_features(self):

@@ -40,7 +40,6 @@ class BleakConnection:
         self._callback = callback
         self._notification_handle = notification_handle
         self._notifyevent = asyncio.Event()
-        self._ble_device = None
         self.rssi = None
         self._lock = asyncio.Lock()
 
@@ -71,9 +70,6 @@ class BleakConnection:
         else:
             raise BackendException("Can't connect")
         return conn
-
-    def set_ble_device(self, ble_device: BLEDevice):
-        self._ble_device = ble_device
 
     async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
