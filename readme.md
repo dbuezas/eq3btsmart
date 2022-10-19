@@ -30,6 +30,9 @@ A modernized temporary replacement for the native Home Assistant component.
 2. Either wait for automatic discovery, or click `+ ADD INTEGRATION` and search for `dbuezas_eq3btsmart`
 3. Addition will succeed immediately, so give the entity some minutes to connect to the thermostat
 
+### Pairing issues
+See here https://github.com/rytilahti/python-eq3bt#pairing
+
 ### Differences with the original component:
 
 - [x] It works in HA version > 2022.7
@@ -47,10 +50,6 @@ A modernized temporary replacement for the native Home Assistant component.
 - [x] Only one concurrent request per thermostat
 - [ ] Service to set the heating schedules (Work in progress)
 - [ ] No support for installing via yaml
-
-### Pairing issues
-
-see https://github.com/rytilahti/python-eq3bt/issues/41
 
 ### Credits
 
