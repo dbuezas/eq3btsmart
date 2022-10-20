@@ -21,6 +21,7 @@ from . import BackendException
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
 RETRIES = 10
+RECONNECT_AFTER_RETRIES = 5
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -104,9 +105,12 @@ class BleakConnection:
         """Write a GATT Command without callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
             i = 0
+            conn = None
             while True:
                 i += 1
                 try:
+                    if i == RECONNECT_AFTER_RETRIES and conn and conn.is_connected:
+                        await conn.disconnect()
                     conn = await self.async_get_connection()
                     self._notifyevent.clear()
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
@@ -114,6 +118,7 @@ class BleakConnection:
                     await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
                     await conn.stop_notify(PROP_NTFY_UUID)
                     return
+                    # keep connection alive
                     # await conn.disconnect()
                 except Exception as ex:
                     _LOGGER.warning(
