@@ -169,7 +169,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self.hass = _hass
         self._name = _name
         self._mac = _mac
-        self._ui_target_temperature = None
+        self._current_temperature = None
         self._is_setting_temperature = False
         self._thermostat = eq3.Thermostat(
             _mac,
@@ -178,6 +178,10 @@ class EQ3BTSmartThermostat(ClimateEntity):
             lambda: self.schedule_update_ha_state(force_refresh=False),
         )
         self._skip_next_update = False
+        self.async_on_remove(self.on_remove)
+
+    def on_remove(self):
+        _LOGGER.debug("[%s] removiing", self.name)
 
     @property
     def supported_features(self):
@@ -207,7 +211,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def current_temperature(self):
         """Can not report temperature, so return target_temperature."""
-        return self._ui_target_temperature
+        return self._current_temperature
 
     @property
     def target_temperature(self):
@@ -223,14 +227,14 @@ class EQ3BTSmartThermostat(ClimateEntity):
         temperature = min(temperature, self.max_temp)
         temperature = max(temperature, self.min_temp)
         self._is_setting_temperature = True
-        self._ui_target_temperature = temperature
+        self._current_temperature = temperature
         self.async_schedule_update_ha_state(
             force_refresh=False
         )  # show current temp now
         await self.async_set_temperature_now()
 
     async def async_set_temperature_now(self):
-        await self._thermostat.async_set_target_temperature(self._ui_target_temperature)
+        await self._thermostat.async_set_target_temperature(self._current_temperature)
         self._is_setting_temperature = False
         self._skip_next_update = True
 
@@ -355,12 +359,13 @@ class EQ3BTSmartThermostat(ClimateEntity):
         else:
             try:
                 await self._thermostat.async_update()
+                if self._is_setting_temperature:
+                    await self.async_set_temperature_now()
+                else:
+                    # temperature may have been updated from the thermostat
+                    self._current_temperature = self._thermostat.target_temperature
             except Exception as ex:
-                # otherwise, the entity will be dropped and never update
+                # otherwise, if this happens during the first update, the entity will be dropped and never update
                 _LOGGER.error(
                     "[%s] Error updating, will retry later: %s", self._name, ex
                 )
-        if self._is_setting_temperature:
-            await self.async_set_temperature_now()
-        else:
-            self._ui_target_temperature = self._thermostat.target_temperature
