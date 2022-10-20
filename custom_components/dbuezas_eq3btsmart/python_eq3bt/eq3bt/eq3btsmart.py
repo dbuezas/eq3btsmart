@@ -22,9 +22,6 @@ from .structures import AwayDataAdapter, DeviceId, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 
-PROP_WRITE_HANDLE = 0x410
-PROP_NTFY_HANDLE = 0x420
-
 PROP_ID_QUERY = 0
 PROP_ID_RETURN = 1
 PROP_INFO_QUERY = 3
@@ -106,9 +103,7 @@ class Thermostat:
         self._device_serial = None
         from .bleakconnection import BleakConnection
 
-        self._conn = BleakConnection(
-            _mac, _name, _hass, PROP_NTFY_HANDLE, self.handle_notification
-        )
+        self._conn = BleakConnection(_mac, _name, _hass, self.handle_notification)
 
     def __str__(self):
         away_end = "no"
@@ -224,7 +219,7 @@ class Thermostat:
         """Query device identification information, e.g. the serial number."""
         _LOGGER.debug("[%s] Querying id..", self._name)
         value = struct.pack("B", PROP_ID_QUERY)
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
         _LOGGER.debug("[%s] Finished Querying id..", self._name)
 
     async def async_update(self):
@@ -242,7 +237,8 @@ class Thermostat:
             time.second,
         )
 
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        # 1 retry since this is not a user command
+        await self._conn.async_make_request(value, retries=1)
 
     async def async_query_schedule(self, day):
         _LOGGER.debug("[%s] Querying schedule..", self._name)
@@ -252,7 +248,7 @@ class Thermostat:
 
         value = struct.pack("BB", PROP_SCHEDULE_QUERY, day)
 
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def schedule(self):
@@ -264,7 +260,7 @@ class Thermostat:
     async def async_set_schedule(self, data):
         """Sets the schedule for the given day."""
         value = Schedule.build(data)
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def rssi(self):
@@ -286,7 +282,7 @@ class Thermostat:
             self._verify_temperature(temperature)
             value = struct.pack("BB", PROP_TEMPERATURE_WRITE, dev_temp)
 
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def mode(self):
@@ -342,7 +338,7 @@ class Thermostat:
         value = struct.pack("BB", PROP_MODE_WRITE, mode)
         if payload:
             value += payload
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def mode_readable(self):
@@ -385,7 +381,7 @@ class Thermostat:
         """Sets boost mode."""
         _LOGGER.debug("[%s] Setting boost mode: %s", self._name, boost)
         value = struct.pack("BB", PROP_BOOST, bool(boost))
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def valve_state(self):
@@ -417,7 +413,7 @@ class Thermostat:
             int(temperature * 2),
             int(duration.seconds / 300),
         )
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def window_open_temperature(self):
@@ -438,7 +434,7 @@ class Thermostat:
         """Locks or unlocks the thermostat."""
         _LOGGER.debug("[%s] Setting the lock: %s", self._name, lock)
         value = struct.pack("BB", PROP_LOCK, bool(lock))
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def low_battery(self):
@@ -459,7 +455,7 @@ class Thermostat:
         value = struct.pack(
             "BBB", PROP_COMFORT_ECO_CONFIG, int(comfort * 2), int(eco * 2)
         )
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def comfort_temperature(self):
@@ -491,17 +487,17 @@ class Thermostat:
             current += 0.5
 
         value = struct.pack("BB", PROP_OFFSET, values[offset])
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     async def async_activate_comfort(self):
         """Activates the comfort temperature."""
         value = struct.pack("B", PROP_COMFORT)
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     async def async_activate_eco(self):
         """Activates the comfort temperature."""
         value = struct.pack("B", PROP_ECO)
-        await self._conn.async_make_request(PROP_WRITE_HANDLE, value)
+        await self._conn.async_make_request(value)
 
     @property
     def min_temp(self):

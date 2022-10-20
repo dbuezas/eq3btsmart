@@ -18,8 +18,13 @@ from homeassistant.components import bluetooth
 
 from . import BackendException
 
-REQUEST_TIMEOUT = 10
+REQUEST_TIMEOUT = 1
+RETRY_BACK_OFF = 1
 RETRIES = 10
+
+# Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
+PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
+PROP_NTFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
 
 # bleak backends are very loud on debug, this reduces the log spam when using --debug
 # logging.getLogger("bleak.backends").setLevel(logging.WARNING)
@@ -31,14 +36,17 @@ class BleakConnection:
     """Representation of a BTLE Connection."""
 
     def __init__(
-        self, mac: str, name: str, hass: HomeAssistant, notification_handle, callback
+        self,
+        mac: str,
+        name: str,
+        hass: HomeAssistant,
+        callback,
     ):
         """Initialize the connection."""
         self._mac = mac
         self._name = name
         self._hass = hass
         self._callback = callback
-        self._notification_handle = notification_handle
         self._notifyevent = asyncio.Event()
         self.rssi = None
         self._lock = asyncio.Lock()
@@ -63,29 +71,34 @@ class BleakConnection:
             ble_device,
             self._name,
             self._on_disconnected,
-            MAX_ATTEMPTS=2,  # there is a retry loop on make_request
+            # MAX_ATTEMPTS=2,  # there is a retry loop on make_request
         )
         if conn.is_connected:
             _LOGGER.debug("[%s] connected", self._name)
+            # paired = None
+            # paired = await conn.pair(
+            #     1  # 1 = pairing with no protection https://bleak.readthedocs.io/en/latest/backends/windows.html?highlight=pair#bleak.backends.winrt.client.BleakClientWinRT.pair
+            # )
+            # _LOGGER.debug("[%s] paired: %s ", self._name, paired)
+
         else:
             raise BackendException("Can't connect")
         return conn
 
     async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
-        # The notification handles are off-by-one compared to gattlib and bluepy
-        # service_handle = handle.handle + 1
-        if handle.handle == self._notification_handle:
+        if PROP_NTFY_UUID == handle.uuid:
             self._notifyevent.set()
             self._callback(data)
         else:
             _LOGGER.error(
-                "[%s] wrong charasteristic: %s",
+                "[%s] wrong charasteristic: %s, %s",
                 self._name,
                 handle.handle,
+                handle.uuid,
             )
 
-    async def async_make_request(self, handle: int, value):
+    async def async_make_request(self, value, retries=RETRIES):
         """Write a GATT Command without callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
             i = 0
@@ -94,15 +107,20 @@ class BleakConnection:
                 try:
                     conn = await self.async_get_connection()
                     self._notifyevent.clear()
-                    await conn.start_notify(
-                        self._notification_handle, self.on_notification
-                    )
-                    await conn.write_gatt_char(handle, value)
+                    await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
+                    await conn.write_gatt_char(PROP_WRITE_UUID, value)
                     await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
-                    await conn.stop_notify(self._notification_handle)
+                    await conn.stop_notify(PROP_NTFY_UUID)
                     return
                     # await conn.disconnect()
                 except Exception as ex:
-                    if i == RETRIES:
+                    _LOGGER.warning(
+                        "[%s] Broken connection [retry %s/%s]: %s",
+                        self._name,
+                        i,
+                        retries,
+                        ex,
+                    )
+                    if i >= retries:
                         raise ex
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(RETRY_BACK_OFF)

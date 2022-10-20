@@ -27,6 +27,8 @@ from homeassistant.components.climate.const import (
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
 )
+from homeassistant.components.climate import HVACMode
+
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
 import voluptuous as vol
 
@@ -65,18 +67,18 @@ ATTR_STATE_LOW_BAT = "low_battery"
 ATTR_STATE_AWAY_END = "away_end"
 
 EQ_TO_HA_HVAC = {
-    eq3.Mode.Open: HVAC_MODE_HEAT,
-    eq3.Mode.Closed: HVAC_MODE_OFF,
-    eq3.Mode.Auto: HVAC_MODE_AUTO,
-    eq3.Mode.Manual: HVAC_MODE_HEAT,
-    eq3.Mode.Boost: HVAC_MODE_AUTO,
-    eq3.Mode.Away: HVAC_MODE_HEAT,
+    eq3.Mode.Open: HVACMode.HEAT,
+    eq3.Mode.Closed: HVACMode.OFF,
+    eq3.Mode.Auto: HVACMode.AUTO,
+    eq3.Mode.Manual: HVACMode.HEAT,
+    eq3.Mode.Boost: HVACMode.AUTO,
+    eq3.Mode.Away: HVACMode.HEAT,
 }
 
 HA_TO_EQ_HVAC = {
-    HVAC_MODE_HEAT: eq3.Mode.Manual,
-    HVAC_MODE_OFF: eq3.Mode.Closed,
-    HVAC_MODE_AUTO: eq3.Mode.Auto,
+    HVACMode.HEAT: eq3.Mode.Manual,
+    HVACMode.OFF: eq3.Mode.Closed,
+    HVACMode.AUTO: eq3.Mode.Auto,
 }
 
 EQ_TO_HA_PRESET = {
@@ -134,10 +136,8 @@ async def async_setup_entry(
     devices = []
     devices.append(eq3)
     async_add_entities(
-        # devices, update_before_add=False
         devices,
-        # If update_before_add=True, then the entity is removed if it cant connect on boot
-        update_before_add=False,
+        update_before_add=True,
     )
 
     platform = entity_platform.async_get_current_platform()
@@ -171,7 +171,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._mac = _mac
         self._ui_target_temperature = None
         self._is_setting_temperature = False
-        self._is_first_update = True
         self._thermostat = eq3.Thermostat(
             _mac,
             _name,
@@ -188,10 +187,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def available(self) -> bool:
         """Return if thermostat is available."""
-        if self._is_first_update:
-            # This hack is so that the entity is kept alive even if the first update after restart fails
-            self._is_first_update = False
-            self.schedule_update_ha_state(True)
         return self._thermostat.mode >= 0
 
     @property
@@ -348,21 +343,23 @@ class EQ3BTSmartThermostat(ClimateEntity):
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
         if preset_mode == PRESET_NONE:
-            await self.async_set_hvac_mode(HVAC_MODE_HEAT)
+            await self.async_set_hvac_mode(HVACMode.HEAT)
         await self._thermostat.async_set_mode(HA_TO_EQ_PRESET[preset_mode])
         self._skip_next_update = True
-
-    async def _async_thermostat_update(self):
-        await self._thermostat.async_update()
 
     async def async_update(self):
         """Update the data from the thermostat."""
         if self._skip_next_update:
             self._skip_next_update = False
             _LOGGER.debug("[%s] skipped update", self.name)
-
         else:
-            await self._async_thermostat_update()
+            try:
+                await self._thermostat.async_update()
+            except Exception as ex:
+                # otherwise, the entity will be dropped and never update
+                _LOGGER.error(
+                    "[%s] Error updating, will retry later: %s", self._name, ex
+                )
         if self._is_setting_temperature:
             await self.async_set_temperature_now()
         else:
