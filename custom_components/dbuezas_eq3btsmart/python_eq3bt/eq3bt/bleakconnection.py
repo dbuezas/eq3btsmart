@@ -74,13 +74,15 @@ class BleakConnection:
             # MAX_ATTEMPTS=2,  # there is a retry loop on make_request
         )
         if conn.is_connected:
-            _LOGGER.debug("[%s] connected", self._name)
-            # paired = None
-            # paired = await conn.pair(
-            #     1  # 1 = pairing with no protection https://bleak.readthedocs.io/en/latest/backends/windows.html?highlight=pair#bleak.backends.winrt.client.BleakClientWinRT.pair
-            # )
-            # _LOGGER.debug("[%s] paired: %s ", self._name, paired)
-
+            _LOGGER.debug("[%s] Connected", self._name)
+            try:
+                # TODO: verify that this
+                paired = await conn.pair(
+                    1  # 1 = pairing with no protection https://bleak.readthedocs.io/en/latest/backends/windows.html?highlight=pair#bleak.backends.winrt.client.BleakClientWinRT.pair
+                )
+                _LOGGER.debug("[%s] Paired: %s ", self._name, paired)
+            except Exception as ex:
+                _LOGGER.warn("[%s] Failed paring: %s ", self._name, ex)
         else:
             raise BackendException("Can't connect")
         return conn
