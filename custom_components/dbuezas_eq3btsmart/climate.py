@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 import logging
-import json
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import format_mac
-from homeassistant.helpers import entity_platform, service
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers import config_validation as cv
-from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -288,9 +286,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
             "firmware_version": self._thermostat.firmware_version,
             "device_serial": self._thermostat.device_serial,
             "schedule": schedule,
-            "schedule2": json.loads(
-                json.dumps(self._thermostat.schedule, default=json_serial)
-            ),
         }
 
         return dev_specific
