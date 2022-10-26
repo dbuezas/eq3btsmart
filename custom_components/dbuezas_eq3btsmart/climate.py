@@ -1,9 +1,10 @@
 """Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
 
 from __future__ import annotations
+import logging
+import json
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers import entity_platform, service
@@ -12,14 +13,11 @@ from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import (
     ATTR_TEMPERATURE,
-    CONF_DEVICES,
     CONF_MAC,
     PRECISION_HALVES,
     TEMP_CELSIUS,
 )
 from homeassistant.components.climate.const import (
-    HVAC_MODE_AUTO,
-    HVAC_MODE_HEAT,
     HVAC_MODE_OFF,
     PRESET_AWAY,
     PRESET_BOOST,
@@ -43,9 +41,6 @@ from bleak.backends.device import BLEDevice
 
 SCAN_INTERVAL = timedelta(minutes=5)
 # PARALLEL_UPDATES = 0
-
-import json
-import logging
 
 
 def json_serial(obj):
@@ -102,28 +97,7 @@ HA_TO_EQ_PRESET = {
 
 DEVICE_SCHEMA = vol.Schema({vol.Required(CONF_MAC): cv.string})
 
-# PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-#     {vol.Required(CONF_DEVICES): vol.Schema({cv.string: DEVICE_SCHEMA})}
-# )
-
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
-
-# this is the setup through config.yaml.
-# def setup_platform(
-#     hass: HomeAssistant,
-#     config: ConfigType,
-#     add_entities: AddEntitiesCallback,
-#     discovery_info: DiscoveryInfoType | None = None,
-# ) -> None:
-#     """Set up the eQ-3 BLE thermostats."""
-#     devices = []
-#     for name, device_cfg in config[CONF_DEVICES].items():
-#         mac = device_cfg[CONF_MAC]
-#         devices.append(EQ3BTSmartThermostat(mac, name))
-#     add_entities(devices, True)
-
-# This function is called as part of the __init__.async_setup_entry (via the
-# hass.config_entries.async_forward_entry_setup call)
 
 
 async def async_setup_entry(
@@ -228,9 +202,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
         temperature = max(temperature, self.min_temp)
         self._is_setting_temperature = True
         self._current_temperature = temperature
-        self.async_schedule_update_ha_state(
-            force_refresh=False
-        )  # show current temp now
+        # show current temp now
+        self.async_schedule_update_ha_state(force_refresh=False)
         await self.async_set_temperature_now()
 
     async def async_set_temperature_now(self):
@@ -252,8 +225,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set operation mode."""
-        # if self.preset_mode:
-        #     return
         await self._thermostat.async_set_mode(HA_TO_EQ_HVAC[hvac_mode])
         self._skip_next_update = True
 
