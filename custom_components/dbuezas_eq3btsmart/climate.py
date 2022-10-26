@@ -149,19 +149,23 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._name = _name
         self._mac = _mac
         self._current_temperature = None
+        # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
-        self._thermostat = eq3.Thermostat(
-            _mac,
-            _name,
-            _hass,
-            lambda: self.schedule_update_ha_state(force_refresh=False),
-        )
+        self._thermostat = eq3.Thermostat(_mac, _name, _hass, self._on_updated)
         # HA forces an update after any prop is set (temp, mode, etc)
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
         self._skip_next_update = False
         self._is_first_update = True
         self.async_on_remove(self.on_remove)
+
+    def _on_updated(self):
+        if self._current_temperature == self.target_temperature:
+            self._is_setting_temperature = False
+        if not self._is_setting_temperature:
+            # temperature may have been updated from the thermostat
+            self._current_temperature = self._thermostat.target_temperature
+        self.schedule_update_ha_state(force_refresh=False)
 
     def on_remove(self):
         # TODO: can I cancel any running connection?
@@ -297,7 +301,12 @@ class EQ3BTSmartThermostat(ClimateEntity):
     async def fetch_serial(self):
         await self._thermostat.async_query_id()
         self.async_schedule_update_ha_state(force_refresh=True)
-        _LOGGER.debug("[%s] serial: %s", self._name, self._thermostat.device_serial)
+        _LOGGER.debug(
+            "[%s] firmware: %s serial: %s",
+            self._name,
+            self._thermostat.firmware_version,
+            self._thermostat.device_serial,
+        )
 
     async def fetch_schedule(self):
         _LOGGER.debug("[%s] fetch_schedule", self._name)
@@ -375,9 +384,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
                 if self._is_setting_temperature:
                     await self.async_set_temperature_now()
-                else:
-                    # temperature may have been updated from the thermostat
-                    self._current_temperature = self._thermostat.target_temperature
+
             except Exception as ex:
                 # otherwise, if this happens during the first update, the entity will be dropped and never update
                 _LOGGER.error(
