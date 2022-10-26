@@ -233,6 +233,14 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set operation mode."""
+        if hvac_mode == HVACMode.OFF:
+            self._current_temperature = EQ3BT_OFF_TEMP
+            self._is_setting_temperature = True
+        else:
+            self._current_temperature = self.target_temperature
+            self._is_setting_temperature = False
+        self.async_schedule_update_ha_state(force_refresh=False)
+
         await self._thermostat.async_set_mode(HA_TO_EQ_HVAC[hvac_mode])
         self._skip_next_update = True
 
@@ -328,9 +336,21 @@ class EQ3BTSmartThermostat(ClimateEntity):
         if preset_mode == PRESET_FORCE_UPDATE:
             self.async_schedule_update_ha_state(force_refresh=True)
             return
+        if preset_mode == PRESET_OPEN:
+            self._current_temperature = EQ3BT_MAX_TEMP
+            self._is_setting_temperature = True
+            self.async_schedule_update_ha_state(force_refresh=False)
+        if preset_mode == PRESET_CLOSED:
+            self._current_temperature = EQ3BT_OFF_TEMP
+            self._is_setting_temperature = True
+            self.async_schedule_update_ha_state(force_refresh=False)
         if preset_mode == PRESET_NONE:
             await self.async_set_hvac_mode(HVACMode.HEAT)
         await self._thermostat.async_set_mode(HA_TO_EQ_PRESET[preset_mode])
+
+        # by now, the target temperature should have been (maybe set) and fetched
+        self._current_temperature = self.target_temperature
+        self._is_setting_temperature = False
         self._skip_next_update = True
 
     async def async_update(self):
