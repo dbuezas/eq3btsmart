@@ -85,6 +85,8 @@ EQ_TO_HA_PRESET = {
     eq3.Mode.Closed: PRESET_CLOSED,
 }
 
+PRESET_FORCE_UPDATE = "Force update"  # fake preset to force fetching from thermostat
+
 HA_TO_EQ_PRESET = {
     PRESET_BOOST: eq3.Mode.Boost,
     PRESET_AWAY: eq3.Mode.Away,
@@ -92,6 +94,7 @@ HA_TO_EQ_PRESET = {
     PRESET_NO_HOLD: eq3.Mode.Auto,
     PRESET_OPEN: eq3.Mode.Open,
     PRESET_CLOSED: eq3.Mode.Closed,
+    PRESET_FORCE_UPDATE: None,
 }
 
 
@@ -322,6 +325,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
+        if preset_mode == PRESET_FORCE_UPDATE:
+            self.async_schedule_update_ha_state(force_refresh=True)
+            return
         if preset_mode == PRESET_NONE:
             await self.async_set_hvac_mode(HVACMode.HEAT)
         await self._thermostat.async_set_mode(HA_TO_EQ_PRESET[preset_mode])
