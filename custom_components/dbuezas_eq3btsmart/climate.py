@@ -151,11 +151,16 @@ class EQ3BTSmartThermostat(ClimateEntity):
             _hass,
             lambda: self.schedule_update_ha_state(force_refresh=False),
         )
+        # HA forces an update after any prop is set (temp, mode, etc)
+        # But each time anything is set, the thermostat responds with the most current data
+        # This means after setting a prop, we can skip the next scheduled update.
         self._skip_next_update = False
+        self._is_first_update = True
         self.async_on_remove(self.on_remove)
 
     def on_remove(self):
-        _LOGGER.debug("[%s] removiing", self.name)
+        # TODO: can I cancel any running connection?
+        _LOGGER.debug("[%s] removing", self.name)
 
     @property
     def supported_features(self):
@@ -330,6 +335,11 @@ class EQ3BTSmartThermostat(ClimateEntity):
         else:
             try:
                 await self._thermostat.async_update()
+                if self._is_first_update:
+                    await self.fetch_serial()
+                    await self.fetch_schedule()
+                    self._is_first_update = False
+
                 if self._is_setting_temperature:
                     await self.async_set_temperature_now()
                 else:
