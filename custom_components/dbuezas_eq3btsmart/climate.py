@@ -84,6 +84,9 @@ EQ_TO_HA_PRESET = {
 }
 
 PRESET_FORCE_UPDATE = "Force update"  # fake preset to force fetching from thermostat
+PRESET_FORCE_DISCONNECT = (
+    "Force disconnect"  # fake preset to force bluetooth disconnection
+)
 
 HA_TO_EQ_PRESET = {
     PRESET_BOOST: eq3.Mode.Boost,
@@ -93,6 +96,7 @@ HA_TO_EQ_PRESET = {
     PRESET_OPEN: eq3.Mode.Open,
     PRESET_CLOSED: eq3.Mode.Closed,
     PRESET_FORCE_UPDATE: None,
+    PRESET_FORCE_DISCONNECT: None,
 }
 
 
@@ -328,8 +332,16 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
+        if preset_mode == PRESET_FORCE_DISCONNECT:
+            if self._thermostat._conn._conn:
+                await self._thermostat._conn._conn.disconnect()
+            self._skip_next_update = True
+            return
         if preset_mode == PRESET_FORCE_UPDATE:
-            self.async_schedule_update_ha_state(force_refresh=True)
+            # self.async_schedule_update_ha_state(force_refresh=True)
+            # self._skip_next_update = True
+
+            # let HA trigger the update after having set something
             return
         if preset_mode == PRESET_OPEN:
             self._current_temperature = EQ3BT_MAX_TEMP
