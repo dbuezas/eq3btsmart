@@ -59,3 +59,5 @@ See here https://github.com/rytilahti/python-eq3bt#pairing
 This is heavily based on https://github.com/rytilahti/python-eq3bt and https://github.com/home-assistant/core/tree/dev/homeassistant/components/eq3btsmart and it should ideally be two PRs instead.
 Unfortunately, the changes go too deep and remove support for the CLI and other backends.
 Therefore, here's a self contained custom component instead.
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dbuezas)
