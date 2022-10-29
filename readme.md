@@ -1,3 +1,4 @@
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dbuezas)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
 # EQ3 Bluetooth Smart Thermostat
@@ -60,4 +61,3 @@ This is heavily based on https://github.com/rytilahti/python-eq3bt and https://g
 Unfortunately, the changes go too deep and remove support for the CLI and other backends.
 Therefore, here's a self contained custom component instead.
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/dbuezas)
