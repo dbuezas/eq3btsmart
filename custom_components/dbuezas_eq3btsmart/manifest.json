@@ -3,7 +3,7 @@
   "name": "dbuezas EQ3 Bluetooth Smart Thermostats",
   "documentation": "https://www.home-assistant.io/integrations/eq3btsmart",
   "requirements": ["construct==2.10.56"],
-  "dependencies": ["bluetooth"],
+  "dependencies": ["bluetooth", "esphome"],
   "codeowners": ["@rytilahti"],
   "iot_class": "local_polling",
   "loggers": ["bleak", "eq3bt"],
