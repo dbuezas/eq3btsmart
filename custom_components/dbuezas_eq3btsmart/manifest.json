@@ -4,7 +4,7 @@
   "documentation": "https://www.home-assistant.io/integrations/eq3btsmart",
   "requirements": ["construct==2.10.56"],
   "dependencies": ["bluetooth"],
-  "codeowners": ["@rytilahti"],
+  "codeowners": ["@dbuezas", "@rytilahti"],
   "iot_class": "local_polling",
   "loggers": ["bleak", "eq3bt"],
   "version": "1.0.3",
