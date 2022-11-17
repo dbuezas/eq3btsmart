@@ -8,10 +8,7 @@ import logging
 import asyncio
 
 from bleak import BleakClient
-from bleak.backends.device import BLEDevice
-from homeassistant.components.esphome.bluetooth.characteristic import (
-    BleakGATTCharacteristic,
-)
+from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import establish_connection
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
@@ -21,7 +18,6 @@ from . import BackendException
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
 RETRIES = 10
-RECONNECT_AFTER_RETRIES = 5
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -51,11 +47,14 @@ class BleakConnection:
         self._notifyevent = asyncio.Event()
         self.rssi = None
         self._lock = asyncio.Lock()
+        self._conn: BleakClient | None = None
 
     def _on_disconnected(self, client: BleakClient) -> None:
         _LOGGER.debug("%s: Disconnected from device; rssi: %s", self._name, self.rssi)
 
     async def async_get_connection(self):
+        if self._conn and self._conn.is_connected:
+            return self._conn
         ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._mac, connectable=True
         )
@@ -67,18 +66,18 @@ class BleakConnection:
             self._name,
             ble_device.rssi,
         )
-        conn = await establish_connection(
+        self._conn = await establish_connection(
             BleakClient,
             ble_device,
             self._name,
             self._on_disconnected,
             # MAX_ATTEMPTS=2,  # there is a retry loop on make_request
         )
-        if conn.is_connected:
+        if self._conn.is_connected:
             _LOGGER.debug("[%s] Connected", self._name)
             try:
                 # TODO: verify that this
-                paired = await conn.pair(
+                paired = await self._conn.pair(
                     1  # 1 = pairing with no protection https://bleak.readthedocs.io/en/latest/backends/windows.html?highlight=pair#bleak.backends.winrt.client.BleakClientWinRT.pair
                 )
                 _LOGGER.debug("[%s] Paired: %s ", self._name, paired)
@@ -86,7 +85,7 @@ class BleakConnection:
                 _LOGGER.warn("[%s] Failed paring: %s ", self._name, ex)
         else:
             raise BackendException("Can't connect")
-        return conn
+        return self._conn
 
     async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
@@ -109,8 +108,6 @@ class BleakConnection:
             while True:
                 i += 1
                 try:
-                    if i == RECONNECT_AFTER_RETRIES and conn and conn.is_connected:
-                        await conn.disconnect()
                     conn = await self.async_get_connection()
                     self._notifyevent.clear()
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
