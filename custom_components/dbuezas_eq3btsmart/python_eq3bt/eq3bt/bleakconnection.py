@@ -20,8 +20,10 @@ RETRY_BACK_OFF = 1
 RETRIES = 10
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
-PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
-PROP_NTFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
+# PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
+# PROP_NTFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
+PROP_WRITE_HANDLE = 0x410
+PROP_NTFY_HANDLE = 0x420
 
 # bleak backends are very loud on debug, this reduces the log spam when using --debug
 # logging.getLogger("bleak.backends").setLevel(logging.WARNING)
@@ -89,10 +91,12 @@ class BleakConnection:
 
     async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
-        if PROP_NTFY_UUID == handle.uuid:
-            self._notifyevent.set()
-            self._callback(data)
-        else:
+        # There is no other notify registered
+        self._notifyevent.set()
+        self._callback(data)
+        # The notification handles are off-by-one compared to gattlib and bluepy
+        service_handle = handle.handle + 1
+        if handle.handle != PROP_NTFY_HANDLE:
             _LOGGER.error(
                 "[%s] wrong charasteristic: %s, %s",
                 self._name,
@@ -110,10 +114,11 @@ class BleakConnection:
                 try:
                     conn = await self.async_get_connection()
                     self._notifyevent.clear()
-                    await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                    await conn.write_gatt_char(PROP_WRITE_UUID, value)
+
+                    await conn.start_notify(PROP_NTFY_HANDLE, self.on_notification)
+                    await conn.write_gatt_char(PROP_WRITE_HANDLE, value)
                     await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
-                    await conn.stop_notify(PROP_NTFY_UUID)
+                    await conn.stop_notify(PROP_NTFY_HANDLE)
                     return
                     # keep connection alive
                     # await conn.disconnect()
