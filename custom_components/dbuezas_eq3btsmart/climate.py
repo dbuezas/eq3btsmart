@@ -83,20 +83,13 @@ EQ_TO_HA_PRESET = {
     eq3.Mode.Closed: PRESET_CLOSED,
 }
 
-PRESET_FORCE_UPDATE = "Force update"  # fake preset to force fetching from thermostat
-PRESET_FORCE_DISCONNECT = (
-    "Force disconnect"  # fake preset to force bluetooth disconnection
-)
-
 HA_TO_EQ_PRESET = {
-    PRESET_BOOST: eq3.Mode.Boost,
-    PRESET_AWAY: eq3.Mode.Away,
-    PRESET_PERMANENT_HOLD: eq3.Mode.Manual,
-    PRESET_NO_HOLD: eq3.Mode.Auto,
     PRESET_OPEN: eq3.Mode.Open,
     PRESET_CLOSED: eq3.Mode.Closed,
-    PRESET_FORCE_UPDATE: None,
-    PRESET_FORCE_DISCONNECT: None,
+    PRESET_NO_HOLD: eq3.Mode.Auto,
+    PRESET_PERMANENT_HOLD: eq3.Mode.Manual,
+    PRESET_BOOST: eq3.Mode.Boost,
+    PRESET_AWAY: eq3.Mode.Away,
 }
 
 
@@ -156,15 +149,16 @@ class EQ3BTSmartThermostat(ClimateEntity):
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
         self._skip_next_update = False
-        self._is_first_update = True
+        self._is_available = False
         self.async_on_remove(self.on_remove)
 
     def _on_updated(self):
+        self._is_available = True
         if self._current_temperature == self.target_temperature:
             self._is_setting_temperature = False
         if not self._is_setting_temperature:
             # temperature may have been updated from the thermostat
-            self._current_temperature = self._thermostat.target_temperature
+            self._current_temperature = self.target_temperature
         self.schedule_update_ha_state(force_refresh=False)
 
     def on_remove(self):
@@ -179,6 +173,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def available(self) -> bool:
         """Return if thermostat is available."""
+        return True
         return self._thermostat.mode >= 0
 
     @property
@@ -300,7 +295,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def fetch_serial(self):
         await self._thermostat.async_query_id()
-        self.async_schedule_update_ha_state(force_refresh=True)
         _LOGGER.debug(
             "[%s] firmware: %s serial: %s",
             self._name,
@@ -309,10 +303,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
         )
 
     async def fetch_schedule(self):
-        _LOGGER.debug("[%s] fetch_schedule", self._name)
         for x in range(0, 7):
             await self._thermostat.async_query_schedule(x)
-        self.async_schedule_update_ha_state(force_refresh=True)
         _LOGGER.debug(
             "[%s] schedule (day %s): %s", self._name, self._thermostat.schedule
         )
@@ -325,6 +317,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Return the current preset mode, e.g., home, away, temp.
         Requires SUPPORT_PRESET_MODE.
         """
+        if not self._is_available:
+            return "Unreacheable"
         return EQ_TO_HA_PRESET.get(self._thermostat.mode)
 
     @property
@@ -341,17 +335,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
-        if preset_mode == PRESET_FORCE_DISCONNECT:
-            if self._thermostat._conn._conn:
-                await self._thermostat._conn._conn.disconnect()
-            self._skip_next_update = True
-            return
-        if preset_mode == PRESET_FORCE_UPDATE:
-            # self.async_schedule_update_ha_state(force_refresh=True)
-            # self._skip_next_update = True
-
-            # let HA trigger the update after having set something
-            return
         if preset_mode == PRESET_OPEN:
             self._current_temperature = EQ3BT_MAX_TEMP
             self._is_setting_temperature = True
@@ -377,16 +360,14 @@ class EQ3BTSmartThermostat(ClimateEntity):
         else:
             try:
                 await self._thermostat.async_update()
-                if self._is_first_update:
+                if self._thermostat._device_serial == None:
                     await self.fetch_serial()
                     await self.fetch_schedule()
-                    self._is_first_update = False
-
                 if self._is_setting_temperature:
                     await self.async_set_temperature_now()
-
             except Exception as ex:
                 # otherwise, if this happens during the first update, the entity will be dropped and never update
+                self._is_available = False
                 _LOGGER.error(
                     "[%s] Error updating, will retry later: %s", self._name, ex
                 )

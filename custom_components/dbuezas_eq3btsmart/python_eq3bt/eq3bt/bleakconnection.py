@@ -8,10 +8,7 @@ import logging
 import asyncio
 
 from bleak import BleakClient
-from bleak.backends.device import BLEDevice
-from homeassistant.components.esphome.bluetooth.characteristic import (
-    BleakGATTCharacteristic,
-)
+from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import establish_connection
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
@@ -21,7 +18,6 @@ from . import BackendException
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
 RETRIES = 10
-RECONNECT_AFTER_RETRIES = 5
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -112,8 +108,6 @@ class BleakConnection:
             while True:
                 i += 1
                 try:
-                    if i == RECONNECT_AFTER_RETRIES and conn and conn.is_connected:
-                        await conn.disconnect()
                     conn = await self.async_get_connection()
                     self._notifyevent.clear()
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)

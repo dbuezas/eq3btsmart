@@ -12,7 +12,6 @@ import logging
 import struct
 from datetime import datetime, timedelta
 from enum import IntEnum
-from bleak.backends.device import BLEDevice
 from typing import Callable
 
 from construct import Byte
@@ -195,7 +194,6 @@ class Thermostat:
             _LOGGER.debug(
                 "[%s] Temp offset:      %s", self._name, self._temperature_offset
             )
-            self._on_update()
 
         elif data[0] == PROP_SCHEDULE_RETURN:
             parsed = self.parse_schedule(data)
@@ -214,6 +212,7 @@ class Thermostat:
                 data[0],
                 codecs.encode(data, "hex"),
             )
+        self._on_update()
 
     async def async_query_id(self):
         """Query device identification information, e.g. the serial number."""
