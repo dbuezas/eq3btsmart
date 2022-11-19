@@ -3,7 +3,13 @@
 from __future__ import annotations
 import logging
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
-from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD, DOMAIN
+from .const import (
+    PRESET_CLOSED,
+    PRESET_NO_HOLD,
+    PRESET_OPEN,
+    PRESET_PERMANENT_HOLD,
+    DOMAIN,
+)
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
 from homeassistant.helpers import entity_platform
@@ -144,14 +150,12 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
-        self._thermostat = eq3.Thermostat(
-            _mac, _device_name, _hass, self._on_updated)
+        self._thermostat = eq3.Thermostat(_mac, _device_name, _hass)
         # HA forces an update after any prop is set (temp, mode, etc)
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
         self._skip_next_update = False
         self._is_available = False
-        self.async_on_remove(self.on_remove)
 
         # We are the main entity of the device and should use the device name.
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
@@ -159,6 +163,24 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._attr_name = None
         self._device_name = _device_name
 
+    async def async_added_to_hass(self) -> None:
+        _LOGGER.debug("[%s] adding", self._device_name)
+
+        # Small hack: HA might call async_update before the entity has been fully added.
+        # In this case the first update callback will be missed and _is_available won't be set.
+        # We circumvent this by checking whether the mode of the thermostat has been set.
+        # If this is the case the first update must have been sucessful.
+        if self._thermostat.mode != eq3.Mode.Unknown:
+            self._on_updated()
+
+        self._thermostat.on_update = self._on_updated
+
+    async def async_will_remove_from_hass(self) -> None:
+        _LOGGER.debug("[%s] removing", self._device_name)
+        self._thermostat.on_update = None
+        # TODO: can I cancel any running connection?
+
+    @callback
     def _on_updated(self):
         self._is_available = True
         if self._current_temperature == self.target_temperature:
@@ -167,10 +189,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
             # temperature may have been updated from the thermostat
             self._current_temperature = self.target_temperature
         self.schedule_update_ha_state(force_refresh=False)
-
-    def on_remove(self):
-        # TODO: can I cancel any running connection?
-        _LOGGER.debug("[%s] removing", self._device_name)
 
     @property
     def supported_features(self):
@@ -343,7 +361,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
             model="CC-RT-BLE-EQ",
             identifiers={(DOMAIN, self._mac)},
             sw_version=self._thermostat.firmware_version,
-            connections={(CONNECTION_BLUETOOTH, self._mac)}
+            connections={(CONNECTION_BLUETOOTH, self._mac)},
         )
 
     async def async_set_preset_mode(self, preset_mode):

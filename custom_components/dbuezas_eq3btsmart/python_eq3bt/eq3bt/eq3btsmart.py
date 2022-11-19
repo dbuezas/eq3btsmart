@@ -75,13 +75,11 @@ class Thermostat:
         _mac: str,
         _name: str,
         _hass: HomeAssistant,
-        _on_update: Callable[[], None],
     ):
         """Initialize the thermostat."""
 
         self._target_temperature = Mode.Unknown
         self._name = _name
-        self._on_update = _on_update
         self._mode = Mode.Unknown
         self._valve_state = Mode.Unknown
         self._raw_mode = None
@@ -103,6 +101,7 @@ class Thermostat:
         from .bleakconnection import BleakConnection
 
         self._conn = BleakConnection(_mac, _name, _hass, self.handle_notification)
+        self.on_update: Callable[[], None] | None = None
 
     def __str__(self):
         away_end = "no"
@@ -212,7 +211,9 @@ class Thermostat:
                 data[0],
                 codecs.encode(data, "hex"),
             )
-        self._on_update()
+
+        if self.on_update:
+            self.on_update()
 
     async def async_query_id(self):
         """Query device identification information, e.g. the serial number."""
