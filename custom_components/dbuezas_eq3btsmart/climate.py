@@ -3,11 +3,12 @@
 from __future__ import annotations
 import logging
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
-from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD
+from .const import PRESET_CLOSED, PRESET_NO_HOLD, PRESET_OPEN, PRESET_PERMANENT_HOLD, DOMAIN
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -152,6 +153,11 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._is_available = False
         self.async_on_remove(self.on_remove)
 
+        # We are the main entity of the device and should use the device name.
+        # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
+        self._attr_has_entity_name = True
+        self._attr_name = None
+
     def _on_updated(self):
         self._is_available = True
         if self._current_temperature == self.target_temperature:
@@ -175,11 +181,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Return if thermostat is available."""
         return True
         return self._thermostat.mode >= 0
-
-    @property
-    def name(self):
-        """Return the name of the device."""
-        return self._name
 
     @property
     def temperature_unit(self):
@@ -332,6 +333,17 @@ class EQ3BTSmartThermostat(ClimateEntity):
     def unique_id(self) -> str:
         """Return the MAC address of the thermostat."""
         return format_mac(self._mac)
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            name=self.name,
+            manufacturer="eQ-3 AG",
+            model="CC-RT-BLE-EQ",
+            identifiers={(DOMAIN, self._mac)},
+            sw_version=self._thermostat.firmware_version,
+            connections={(CONNECTION_BLUETOOTH, self._mac)}
+        )
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
