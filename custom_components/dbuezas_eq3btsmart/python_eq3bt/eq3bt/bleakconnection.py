@@ -67,21 +67,28 @@ class BleakConnection:
         ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._mac, connectable=True
         )
-        if not ble_device:
-            raise BackendException("Can't find device")
-        self.rssi = ble_device.rssi
-        _LOGGER.debug(
-            "[%s] Connecting with ble_device, rssi: %s",
-            self._name,
-            ble_device.rssi,
-        )
-        self._conn = await establish_connection(
-            BleakClient,
-            ble_device,
-            self._name,
-            self._on_disconnected,
-            MAX_ATTEMPTS=1,  # there is a retry loop on make_request
-        )
+        if ble_device:
+            self.rssi = ble_device.rssi
+            _LOGGER.debug(
+                "[%s] Connecting with ble_device, rssi: %s",
+                self._name,
+                ble_device.rssi,
+            )
+            self._conn = await establish_connection(
+                BleakClient,
+                ble_device,
+                self._name,
+                self._on_disconnected,
+                MAX_ATTEMPTS=1,  # there is a retry loop on make_request
+            )
+        else:
+            _LOGGER.debug(
+                "[%s]NO ble_device, attempting forced connection",
+                self._name,
+            )
+            self._conn = BleakClient(self._mac)
+            await self._conn.connect(timeout=14.25)
+
         if self._conn.is_connected:
             _LOGGER.debug("[%s] Connected", self._name)
             try:
