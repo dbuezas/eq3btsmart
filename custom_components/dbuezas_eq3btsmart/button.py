@@ -1,8 +1,8 @@
 import logging
 
-from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
+from homeassistant.helpers.device_registry import format_mac
 from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers import entity_platform
 from datetime import time
@@ -21,12 +21,12 @@ async def async_setup_entry(
 ) -> None:
     """Add sensors for passed config_entry in HA."""
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
-    _LOGGER.debug(
-        "[%s] button: async_setup_entry",
-        eq3.name,
-    )
 
-    new_devices = [FetchScheduleButton(eq3)]
+    new_devices = [
+        FetchScheduleButton(eq3),
+        ForceQueryButton(eq3),
+        ForceDisconnectButton(eq3),
+    ]
     async_add_entities(new_devices)
 
     platform = entity_platform.async_get_current_platform()
@@ -43,34 +43,31 @@ async def async_setup_entry(
     )
 
 
-class FetchScheduleButton(ButtonEntity):
+class Base(ButtonEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
     def __init__(self, _thermostat: Thermostat):
-        """Initialize the thermostat."""
-        # We want to avoid name clash with this module.
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
-        self._attr_name = "Fetch Schedule"
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
 
-        _LOGGER.debug(
-            "[%s] button: __init__",
-            _thermostat.name,
+    @property
+    def unique_id(self) -> str:
+        return format_mac(self._thermostat.mac) + "_" + self.name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._thermostat.mac)},
         )
 
-    # @property
-    # def device_info(self) -> DeviceInfo:
-    #     return DeviceInfo(
-    #         name=self._thermostat.name,
-    #         manufacturer="eQ-3 AG",
-    #         model="CC-RT-BLE-EQ",
-    #         identifiers={(DOMAIN, self._thermostat.mac)},
-    #         sw_version=self._thermostat.firmware_version,
-    #         connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
-    #     )
+
+class FetchScheduleButton(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        self._attr_name = "Fetch Schedule"
 
     async def async_press(self) -> None:
-        """Handle the button press."""
         await self.fetch_schedule()
 
     async def fetch_schedule(self):
@@ -87,7 +84,6 @@ class FetchScheduleButton(ButtonEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return the device specific state attributes."""
         schedule = {}
 
         def stringifyTime(timeObj):
@@ -114,3 +110,24 @@ class FetchScheduleButton(ButtonEntity):
         }
 
         return dev_specific
+
+
+class ForceQueryButton(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        self._attr_name = "Force Query"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    async def async_press(self) -> None:
+        await self._thermostat.async_update()
+
+
+class ForceDisconnectButton(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        self._attr_name = "Force Disconnect"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    async def async_press(self) -> None:
+        if self._thermostat._conn._conn:
+            await self._thermostat._conn._conn.disconnect()

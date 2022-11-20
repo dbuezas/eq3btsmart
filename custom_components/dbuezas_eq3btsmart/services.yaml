@@ -1,16 +1,3 @@
-fetch_serial:
-  name: Fetch EQ3 Serial Number
-  description: Fetches the serial number and firmware version and stores it as an attribute
-  target:
-    entity:
-      integration: dbuezas_eq3btsmart
-fetch_schedule:
-  name: Fetch EQ3 Schedule
-  description: Fetches the internal schedule and stores it as an attribute
-  target:
-    entity:
-      integration: dbuezas_eq3btsmart
-  fields:
 set_schedule:
   name: Set EQ3 Schedule
   description: Sets the internal schedule

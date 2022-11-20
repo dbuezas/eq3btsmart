@@ -3,7 +3,6 @@
 from __future__ import annotations
 import logging
 import asyncio
-from homeassistant.helpers import device_registry as dr
 
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
@@ -34,7 +33,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.components.climate import HVACMode
 
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+from homeassistant.components.climate import ClimateEntity
 import voluptuous as vol
 
 from datetime import timedelta
@@ -123,7 +122,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
         self._thermostat = _thermostat
-        self._thermostat.set_on_update(self._on_updated)
+        self._thermostat.register_update_callback(self._on_updated)
         # HA forces an update after any prop is set (temp, mode, etc)
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
@@ -242,40 +241,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         return EQ3BT_MAX_TEMP
 
     @property
-    def extra_state_attributes(self):
-        """Return the device specific state attributes."""
-        dev_specific = {
-            ATTR_STATE_AWAY_END: self._thermostat.away_end,
-            ATTR_STATE_LOCKED: self._thermostat.locked,
-            ATTR_STATE_LOW_BAT: self._thermostat.low_battery,
-            ATTR_STATE_VALVE: self._thermostat.valve_state,
-            ATTR_STATE_WINDOW_OPEN: self._thermostat.window_open,
-            "rssi": self._thermostat.rssi,
-            "firmware_version": self._thermostat.firmware_version,
-            "device_serial": self._thermostat.device_serial,
-        }
-
-        return dev_specific
-
-    async def fetch_serial(self):
-        await self._thermostat.async_query_id()
-        device_registry = dr.async_get(self.hass)
-        device = device_registry.async_get_device(
-            identifiers={(DOMAIN, self._thermostat.mac)},
-        )
-        if device:
-            device_registry.async_update_device(
-                device_id=device.id, sw_version=self._thermostat.firmware_version
-            )
-
-        _LOGGER.debug(
-            "[%s] firmware: %s serial: %s",
-            self._thermostat.name,
-            self._thermostat.firmware_version,
-            self._thermostat.device_serial,
-        )
-
-    @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp.
         Requires SUPPORT_PRESET_MODE.
@@ -334,8 +299,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         else:
             try:
                 await self._thermostat.async_update()
-                if self._thermostat._device_serial == None:
-                    await self.fetch_serial()
                 if self._is_setting_temperature:
                     await self.async_set_temperature_now()
             except Exception as ex:

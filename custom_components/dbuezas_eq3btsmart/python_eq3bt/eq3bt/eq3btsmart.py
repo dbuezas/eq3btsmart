@@ -100,10 +100,11 @@ class Thermostat:
         self._device_serial = None
         from .bleakconnection import BleakConnection
 
+        self._on_update_callbacks = []
         self._conn = BleakConnection(_mac, name, _hass, self.handle_notification)
 
-    def set_on_update(self, on_update):
-        self._on_update = on_update
+    def register_update_callback(self, on_update):
+        self._on_update_callbacks.append(on_update)
 
     def shutdown(self):
         self._conn.shutdown()
@@ -214,7 +215,8 @@ class Thermostat:
                 data[0],
                 codecs.encode(data, "hex"),
             )
-        self._on_update()
+        for callback in self._on_update_callbacks:
+            callback()
 
     async def async_query_id(self):
         """Query device identification information, e.g. the serial number."""

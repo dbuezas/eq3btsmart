@@ -11,7 +11,13 @@ from . import config_flow
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import DOMAIN
 
-PLATFORMS = [Platform.CLIMATE, Platform.BUTTON]
+PLATFORMS = [
+    Platform.CLIMATE,
+    Platform.BUTTON,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.BINARY_SENSOR,
+]
 
 _LOGGER = logging.getLogger(__name__)
 
