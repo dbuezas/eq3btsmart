@@ -165,7 +165,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         _LOGGER.debug("[%s] adding", self._device_name)
-        self.schedule_update_ha_state(force_refresh=True)
+        self.async_schedule_update_ha_state(force_refresh=True)
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._device_name)
