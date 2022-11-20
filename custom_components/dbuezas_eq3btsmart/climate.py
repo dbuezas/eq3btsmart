@@ -3,6 +3,8 @@
 from __future__ import annotations
 import logging
 import asyncio
+from homeassistant.helpers import device_registry as dr
+
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
     PRESET_CLOSED,
@@ -166,8 +168,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         _LOGGER.debug("[%s] adding", self._device_name)
-        loop = asyncio.get_event_loop()
-        loop.create_task(self._thermostat.async_update())
+        asyncio.get_event_loop().create_task(self.async_update())
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._device_name)
@@ -310,6 +311,15 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def fetch_serial(self):
         await self._thermostat.async_query_id()
+        device_registry = dr.async_get(self.hass)
+        device = device_registry.async_get_device(
+            identifiers={(DOMAIN, self._mac)},
+        )
+        if device:
+            device_registry.async_update_device(
+                device_id=device.id, sw_version=self._thermostat.firmware_version
+            )
+
         _LOGGER.debug(
             "[%s] firmware: %s serial: %s",
             self._device_name,
@@ -388,7 +398,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
                 await self._thermostat.async_update()
                 if self._thermostat._device_serial == None:
                     await self.fetch_serial()
-                    await self.fetch_schedule()
                 if self._is_setting_temperature:
                     await self.async_set_temperature_now()
             except Exception as ex:
