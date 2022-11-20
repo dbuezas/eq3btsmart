@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import logging
+import asyncio
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
     PRESET_CLOSED,
@@ -165,7 +166,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         _LOGGER.debug("[%s] adding", self._device_name)
-        self.async_schedule_update_ha_state(force_refresh=True)
+        loop = asyncio.get_event_loop()
+        loop.create_task(self._thermostat.async_update())
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._device_name)
@@ -192,8 +194,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def available(self) -> bool:
         """Return if thermostat is available."""
-        return True
-        return self._thermostat.mode >= 0
+        return True  # so
 
     @property
     def temperature_unit(self):
