@@ -140,7 +140,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Initialize the thermostat."""
         # We want to avoid name clash with this module.
         self.hass = _hass
-        self._name = _name
         self._mac = _mac
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
@@ -298,7 +297,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         await self._thermostat.async_query_id()
         _LOGGER.debug(
             "[%s] firmware: %s serial: %s",
-            self._name,
+            self.name,
             self._thermostat.firmware_version,
             self._thermostat.device_serial,
         )
@@ -307,11 +306,11 @@ class EQ3BTSmartThermostat(ClimateEntity):
         for x in range(0, 7):
             await self._thermostat.async_query_schedule(x)
         _LOGGER.debug(
-            "[%s] schedule (day %s): %s", self._name, self._thermostat.schedule
+            "[%s] schedule (day %s): %s", self.name, self._thermostat.schedule
         )
 
     def set_schedule(self, day: int = 0):
-        _LOGGER.debug("[%s] set_schedule (day %s)", self._name, day)
+        _LOGGER.debug("[%s] set_schedule (day %s)", self.name, day)
 
     @property
     def preset_mode(self):
@@ -381,5 +380,5 @@ class EQ3BTSmartThermostat(ClimateEntity):
                 # otherwise, if this happens during the first update, the entity will be dropped and never update
                 self._is_available = False
                 _LOGGER.error(
-                    "[%s] Error updating, will retry later: %s", self._name, ex
+                    "[%s] Error updating, will retry later: %s", self.name, ex
                 )
