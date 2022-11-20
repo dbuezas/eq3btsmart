@@ -26,7 +26,7 @@ async def async_setup_entry(
         BatterySensor(eq3),
         WindowOpenSensor(eq3),
         ConnectedSensor(eq3),
-        RunningSensor(eq3),
+        BussySensor(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -66,11 +66,10 @@ class BaseConnectionSensor(BinarySensorEntity):
         )
 
 
-class RunningSensor(BaseConnectionSensor):
+class BussySensor(BaseConnectionSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Running"
-        self._attr_device_class = "running"
+        self._attr_name = "Busy"
 
     @property
     def is_on(self):
