@@ -5,6 +5,9 @@
 
 A modernized temporary replacement for the native Home Assistant component.
 
+
+<img width="685" alt="image" src="https://user-images.githubusercontent.com/777196/202929567-04d769f4-8f43-4032-9036-446ad447512b.png">
+
 [Home Assistant Forum Post](https://community.home-assistant.io/t/eq3-bt-smart-thermostat-working-with-v-2022-7/476620)
 
 ## Installation
