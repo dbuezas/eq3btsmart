@@ -73,15 +73,13 @@ class Thermostat:
     def __init__(
         self,
         _mac: str,
-        _name: str,
+        name: str,
         _hass: HomeAssistant,
-        _on_update: Callable[[], None],
     ):
         """Initialize the thermostat."""
 
         self._target_temperature = Mode.Unknown
-        self._name = _name
-        self._on_update = _on_update
+        self.name = name
         self._mode = Mode.Unknown
         self._valve_state = Mode.Unknown
         self._raw_mode = None
@@ -102,7 +100,10 @@ class Thermostat:
         self._device_serial = None
         from .bleakconnection import BleakConnection
 
-        self._conn = BleakConnection(_mac, _name, _hass, self.handle_notification)
+        self._conn = BleakConnection(_mac, name, _hass, self.handle_notification)
+
+    def set_on_update(self, on_update):
+        self._on_update = on_update
 
     def shutdown(self):
         self._conn.shutdown()
@@ -113,7 +114,7 @@ class Thermostat:
             away_end = "end: %s" % self._away_end
 
         return "[{}] Target {} (mode: {}, away: {})".format(
-            self._name, self.target_temperature, self.mode_readable, away_end
+            self.name, self.target_temperature, self.mode_readable, away_end
         )
 
     def _verify_temperature(self, temp):
@@ -130,18 +131,18 @@ class Thermostat:
     def parse_schedule(self, data):
         """Parses the device sent schedule."""
         sched = Schedule.parse(data)
-        _LOGGER.debug("[%s] Got schedule data for day '%s'", self._name, sched.day)
+        _LOGGER.debug("[%s] Got schedule data for day '%s'", self.name, sched.day)
 
         return sched
 
     def handle_notification(self, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
-        _LOGGER.debug("[%s] Received notification from the device.", self._name)
+        _LOGGER.debug("[%s] Received notification from the device.", self.name)
 
         if data[0] == PROP_INFO_RETURN and data[1] == 1:
-            _LOGGER.debug("[%s] Got status: %s", self._name, codecs.encode(data, "hex"))
+            _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
             status = Status.parse(data)
-            _LOGGER.debug("[%s] Parsed status: %s", self._name, status)
+            _LOGGER.debug("[%s] Parsed status: %s", self.name, status)
 
             self._raw_mode = status.mode
             self._valve_state = status.valve
@@ -176,26 +177,24 @@ class Thermostat:
                 self._eco_temperature = None
                 self._temperature_offset = None
 
-            _LOGGER.debug("[%s] Valve state:      %s", self._name, self._valve_state)
-            _LOGGER.debug("[%s] Mode:             %s", self._name, self.mode_readable)
+            _LOGGER.debug("[%s] Valve state:      %s", self.name, self._valve_state)
+            _LOGGER.debug("[%s] Mode:             %s", self.name, self.mode_readable)
             _LOGGER.debug(
-                "[%s] Target temp:      %s", self._name, self._target_temperature
+                "[%s] Target temp:      %s", self.name, self._target_temperature
             )
-            _LOGGER.debug("[%s] Away end:         %s", self._name, self._away_end)
+            _LOGGER.debug("[%s] Away end:         %s", self.name, self._away_end)
             _LOGGER.debug(
-                "[%s] Window open temp: %s", self._name, self._window_open_temperature
-            )
-            _LOGGER.debug(
-                "[%s] Window open time: %s", self._name, self._window_open_time
+                "[%s] Window open temp: %s", self.name, self._window_open_temperature
             )
             _LOGGER.debug(
-                "[%s] Comfort temp:     %s", self._name, self._comfort_temperature
+                "[%s] Window open time: %s", self.name, self._window_open_time
             )
             _LOGGER.debug(
-                "[%s] Eco temp:         %s", self._name, self._eco_temperature
+                "[%s] Comfort temp:     %s", self.name, self._comfort_temperature
             )
+            _LOGGER.debug("[%s] Eco temp:         %s", self.name, self._eco_temperature)
             _LOGGER.debug(
-                "[%s] Temp offset:      %s", self._name, self._temperature_offset
+                "[%s] Temp offset:      %s", self.name, self._temperature_offset
             )
 
         elif data[0] == PROP_SCHEDULE_RETURN:
@@ -204,14 +203,14 @@ class Thermostat:
 
         elif data[0] == PROP_ID_RETURN:
             parsed = DeviceId.parse(data)
-            _LOGGER.debug("[%s] Parsed device data: %s", self._name, parsed)
+            _LOGGER.debug("[%s] Parsed device data: %s", self.name, parsed)
             self._firmware_version = parsed.version
             self._device_serial = parsed.serial
 
         else:
             _LOGGER.debug(
                 "[%s] Unknown notification %s (%s)",
-                self._name,
+                self.name,
                 data[0],
                 codecs.encode(data, "hex"),
             )
@@ -219,14 +218,14 @@ class Thermostat:
 
     async def async_query_id(self):
         """Query device identification information, e.g. the serial number."""
-        _LOGGER.debug("[%s] Querying id..", self._name)
+        _LOGGER.debug("[%s] Querying id..", self.name)
         value = struct.pack("B", PROP_ID_QUERY)
         await self._conn.async_make_request(value)
-        _LOGGER.debug("[%s] Finished Querying id..", self._name)
+        _LOGGER.debug("[%s] Finished Querying id..", self.name)
 
     async def async_update(self):
         """Update the data from the thermostat. Always sets the current time."""
-        _LOGGER.debug("[%s] Querying the device..", self._name)
+        _LOGGER.debug("[%s] Querying the device..", self.name)
         time = datetime.now()
         value = struct.pack(
             "BBBBBBB",
@@ -242,10 +241,10 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     async def async_query_schedule(self, day):
-        _LOGGER.debug("[%s] Querying schedule..", self._name)
+        _LOGGER.debug("[%s] Querying schedule..", self.name)
 
         if day < 0 or day > 6:
-            _LOGGER.error("[%s] Invalid day: %s", self._name, day)
+            _LOGGER.error("[%s] Invalid day: %s", self.name, day)
 
         value = struct.pack("BB", PROP_SCHEDULE_QUERY, day)
 
@@ -292,7 +291,7 @@ class Thermostat:
 
     async def async_set_mode(self, mode):
         """Set the operation mode."""
-        _LOGGER.debug("[%s] Setting new mode: %s", self._name, mode)
+        _LOGGER.debug("[%s] Setting new mode: %s", self.name, mode)
 
         if self.mode == Mode.Boost and mode != Mode.Boost:
             await self.async_set_boost(False)
@@ -324,11 +323,11 @@ class Thermostat:
         """Sets away mode with target temperature.
         When called without parameters disables away mode."""
         if not away_end:
-            _LOGGER.debug("[%s] Disabling away, going to auto mode.", self._name)
+            _LOGGER.debug("[%s] Disabling away, going to auto mode.", self.name)
             return await self._async_set_mode(0x00)
 
         _LOGGER.debug(
-            "[%s] Setting away until %s, temp %s", self._name, away_end, temperature
+            "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
         )
         adapter = AwayDataAdapter(Byte[4])
         packed = adapter.build(away_end)
@@ -380,7 +379,7 @@ class Thermostat:
 
     async def async_set_boost(self, boost):
         """Sets boost mode."""
-        _LOGGER.debug("[%s] Setting boost mode: %s", self._name, boost)
+        _LOGGER.debug("[%s] Setting boost mode: %s", self.name, boost)
         value = struct.pack("BB", PROP_BOOST, bool(boost))
         await self._conn.async_make_request(value)
 
@@ -400,7 +399,7 @@ class Thermostat:
         5 minute increments."""
         _LOGGER.debug(
             "[%s] Window open config, temperature: %s duration: %s",
-            self._name,
+            self.name,
             temperature,
             duration,
         )
@@ -433,7 +432,7 @@ class Thermostat:
 
     async def async_set_locked(self, lock):
         """Locks or unlocks the thermostat."""
-        _LOGGER.debug("[%s] Setting the lock: %s", self._name, lock)
+        _LOGGER.debug("[%s] Setting the lock: %s", self.name, lock)
         value = struct.pack("BB", PROP_LOCK, bool(lock))
         await self._conn.async_make_request(value)
 
@@ -447,7 +446,7 @@ class Thermostat:
         eco (moon)."""
         _LOGGER.debug(
             "[%s] Setting temperature presets, comfort: %s eco: %s",
-            self._name,
+            self.name,
             comfort,
             eco,
         )
@@ -475,7 +474,7 @@ class Thermostat:
 
     async def async_set_temperature_offset(self, offset):
         """Sets the thermostat's temperature offset."""
-        _LOGGER.debug("[%s] Setting offset: %s", self._name, offset)
+        _LOGGER.debug("[%s] Setting offset: %s", self.name, offset)
         # [-3,5 .. 0  .. 3,5 ]
         # [00   .. 07 .. 0e ]
         if offset < -3.5 or offset > 3.5:
