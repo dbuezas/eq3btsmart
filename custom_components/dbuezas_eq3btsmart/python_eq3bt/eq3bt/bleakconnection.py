@@ -17,7 +17,7 @@ from . import BackendException
 
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
-RETRIES = 10
+RETRIES = 15
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -44,13 +44,22 @@ class BleakConnection:
         self._name = name
         self._hass = hass
         self._callback = callback
-        self._notifyevent = asyncio.Event()
+        self._notify_event = asyncio.Event()
+        self._terminate_event = asyncio.Event()
         self.rssi = None
         self._lock = asyncio.Lock()
         self._conn: BleakClient | None = None
 
     def _on_disconnected(self, client: BleakClient) -> None:
         _LOGGER.debug("%s: Disconnected from device; rssi: %s", self._name, self.rssi)
+
+    def shutdown(self):
+        self._terminate_event.set()
+        self._notify_event.set()
+
+    def throw_if_terminating(self):
+        if self._terminate_event.is_set():
+            raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
         if self._conn and self._conn.is_connected:
@@ -71,7 +80,7 @@ class BleakConnection:
             ble_device,
             self._name,
             self._on_disconnected,
-            # MAX_ATTEMPTS=2,  # there is a retry loop on make_request
+            MAX_ATTEMPTS=1,  # there is a retry loop on make_request
         )
         if self._conn.is_connected:
             _LOGGER.debug("[%s] Connected", self._name)
@@ -90,7 +99,7 @@ class BleakConnection:
     async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
         if PROP_NTFY_UUID == handle.uuid:
-            self._notifyevent.set()
+            self._notify_event.set()
             self._callback(data)
         else:
             _LOGGER.error(
@@ -108,16 +117,16 @@ class BleakConnection:
             while True:
                 i += 1
                 try:
+                    self.throw_if_terminating()
                     conn = await self.async_get_connection()
-                    self._notifyevent.clear()
+                    self._notify_event.clear()
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
                     await conn.write_gatt_char(PROP_WRITE_UUID, value)
-                    await asyncio.wait_for(self._notifyevent.wait(), REQUEST_TIMEOUT)
+                    await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
                     await conn.stop_notify(PROP_NTFY_UUID)
                     return
-                    # keep connection alive
-                    # await conn.disconnect()
                 except Exception as ex:
+                    self.throw_if_terminating()
                     _LOGGER.warning(
                         "[%s] Broken connection [retry %s/%s]: %s",
                         self._name,

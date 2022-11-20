@@ -172,7 +172,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._device_name)
-        # TODO: can I cancel any running connection?
+        self._thermostat.shutdown()
 
     @callback
     def _on_updated(self):
@@ -184,8 +184,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
             self._current_temperature = self.target_temperature
         if self.entity_id is None:
             _LOGGER.warn("[%s] Updated but the entity is not loaded", self._device_name)
-        else:
-            self.schedule_update_ha_state(force_refresh=False)
+            return
+        self.schedule_update_ha_state(force_refresh=False)
 
     @property
     def supported_features(self):

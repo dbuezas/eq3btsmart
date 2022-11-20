@@ -104,6 +104,9 @@ class Thermostat:
 
         self._conn = BleakConnection(_mac, _name, _hass, self.handle_notification)
 
+    def shutdown(self):
+        self._conn.shutdown()
+
     def __str__(self):
         away_end = "no"
         if self.away_end:
@@ -236,8 +239,7 @@ class Thermostat:
             time.second,
         )
 
-        # 1 retry since this is not a user command
-        await self._conn.async_make_request(value, retries=1)
+        await self._conn.async_make_request(value)
 
     async def async_query_schedule(self, day):
         _LOGGER.debug("[%s] Querying schedule..", self._name)
