@@ -116,7 +116,7 @@ async def async_setup_entry(
     devices.append(eq3)
     async_add_entities(
         devices,
-        update_before_add=True,
+        update_before_add=False,
     )
 
     platform = entity_platform.async_get_current_platform()
@@ -150,7 +150,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
-        self._thermostat = eq3.Thermostat(_mac, _device_name, _hass)
+        self._thermostat = eq3.Thermostat(_mac, _device_name, _hass, self._on_updated)
         # HA forces an update after any prop is set (temp, mode, etc)
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
@@ -165,19 +165,10 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         _LOGGER.debug("[%s] adding", self._device_name)
-
-        # Small hack: HA might call async_update before the entity has been fully added.
-        # In this case the first update callback will be missed and _is_available won't be set.
-        # We circumvent this by checking whether the mode of the thermostat has been set.
-        # If this is the case the first update must have been sucessful.
-        if self._thermostat.mode != eq3.Mode.Unknown:
-            self._on_updated()
-
-        self._thermostat.on_update = self._on_updated
+        self.schedule_update_ha_state(force_refresh=True)
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._device_name)
-        self._thermostat.on_update = None
         # TODO: can I cancel any running connection?
 
     @callback
@@ -188,7 +179,10 @@ class EQ3BTSmartThermostat(ClimateEntity):
         if not self._is_setting_temperature:
             # temperature may have been updated from the thermostat
             self._current_temperature = self.target_temperature
-        self.schedule_update_ha_state(force_refresh=False)
+        if self.entity_id is None:
+            _LOGGER.warn("[%s] Updated but the entity is not loaded", self._device_name)
+        else:
+            self.schedule_update_ha_state(force_refresh=False)
 
     @property
     def supported_features(self):
