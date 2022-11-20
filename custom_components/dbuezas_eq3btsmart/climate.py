@@ -136,7 +136,7 @@ async def async_setup_entry(
 class EQ3BTSmartThermostat(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _mac: str, _name: str, _hass: HomeAssistant):
+    def __init__(self, _mac: str, _device_name: str, _hass: HomeAssistant):
         """Initialize the thermostat."""
         # We want to avoid name clash with this module.
         self.hass = _hass
@@ -144,7 +144,8 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
-        self._thermostat = eq3.Thermostat(_mac, _name, _hass, self._on_updated)
+        self._thermostat = eq3.Thermostat(
+            _mac, _device_name, _hass, self._on_updated)
         # HA forces an update after any prop is set (temp, mode, etc)
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
@@ -156,6 +157,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
         self._attr_name = None
+        self._device_name = _device_name
 
     def _on_updated(self):
         self._is_available = True
@@ -168,7 +170,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     def on_remove(self):
         # TODO: can I cancel any running connection?
-        _LOGGER.debug("[%s] removing", self.name)
+        _LOGGER.debug("[%s] removing", self._device_name)
 
     @property
     def supported_features(self):
@@ -297,7 +299,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         await self._thermostat.async_query_id()
         _LOGGER.debug(
             "[%s] firmware: %s serial: %s",
-            self.name,
+            self._device_name,
             self._thermostat.firmware_version,
             self._thermostat.device_serial,
         )
@@ -306,11 +308,11 @@ class EQ3BTSmartThermostat(ClimateEntity):
         for x in range(0, 7):
             await self._thermostat.async_query_schedule(x)
         _LOGGER.debug(
-            "[%s] schedule (day %s): %s", self.name, self._thermostat.schedule
+            "[%s] schedule (day %s): %s", self._device_name, self._thermostat.schedule
         )
 
     def set_schedule(self, day: int = 0):
-        _LOGGER.debug("[%s] set_schedule (day %s)", self.name, day)
+        _LOGGER.debug("[%s] set_schedule (day %s)", self._device_name, day)
 
     @property
     def preset_mode(self):
@@ -336,7 +338,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            name=self.name,
+            name=self._device_name,
             manufacturer="eQ-3 AG",
             model="CC-RT-BLE-EQ",
             identifiers={(DOMAIN, self._mac)},
@@ -367,7 +369,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Update the data from the thermostat."""
         if self._skip_next_update:
             self._skip_next_update = False
-            _LOGGER.debug("[%s] skipped update", self.name)
+            _LOGGER.debug("[%s] skipped update", self._device_name)
         else:
             try:
                 await self._thermostat.async_update()
@@ -380,5 +382,5 @@ class EQ3BTSmartThermostat(ClimateEntity):
                 # otherwise, if this happens during the first update, the entity will be dropped and never update
                 self._is_available = False
                 _LOGGER.error(
-                    "[%s] Error updating, will retry later: %s", self.name, ex
+                    "[%s] Error updating, will retry later: %s", self._device_name, ex
                 )
