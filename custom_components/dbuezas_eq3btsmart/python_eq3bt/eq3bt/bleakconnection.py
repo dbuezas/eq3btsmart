@@ -17,7 +17,8 @@ from . import BackendException
 
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
-RETRIES = 15
+RETRIES = 14
+RECONNECT_ON_RETRY = 7
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -49,9 +50,15 @@ class BleakConnection:
         self.rssi = None
         self._lock = asyncio.Lock()
         self._conn: BleakClient | None = None
+        self._connection_callbacks = []
+        self.retries = 0
 
-    def _on_disconnected(self, client: BleakClient) -> None:
-        _LOGGER.debug("%s: Disconnected from device; rssi: %s", self._name, self.rssi)
+    def register_connection_callback(self, callback) -> None:
+        self._connection_callbacks.append(callback)
+
+    def _on_connection_event(self) -> None:
+        for callback in self._connection_callbacks:
+            callback()
 
     def shutdown(self):
         self._terminate_event.set()
@@ -78,16 +85,18 @@ class BleakConnection:
                 BleakClient,
                 ble_device,
                 self._name,
-                self._on_disconnected,
-                MAX_ATTEMPTS=1,  # there is a retry loop on make_request
+                lambda client: self._on_connection_event(),
+                MAX_ATTEMPTS=2,  # there is a retry loop on make_request
             )
+            for callback in self._connection_callbacks:
+                callback()
+
         else:
             _LOGGER.debug(
-                "[%s]NO ble_device, attempting forced connection",
+                "[%s]NO ble_device found",
                 self._name,
             )
-            self._conn = BleakClient(self._mac)
-            await self._conn.connect(timeout=14.25)
+            raise Exception("Device not found")
 
         if self._conn.is_connected:
             _LOGGER.debug("[%s] Connected", self._name)
@@ -119,28 +128,40 @@ class BleakConnection:
     async def async_make_request(self, value, retries=RETRIES):
         """Write a GATT Command without callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
-            i = 0
-            conn = None
-            while True:
-                i += 1
-                try:
-                    self.throw_if_terminating()
-                    conn = await self.async_get_connection()
-                    self._notify_event.clear()
-                    await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                    await conn.write_gatt_char(PROP_WRITE_UUID, value)
-                    await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
-                    await conn.stop_notify(PROP_NTFY_UUID)
-                    return
-                except Exception as ex:
-                    self.throw_if_terminating()
-                    _LOGGER.warning(
-                        "[%s] Broken connection [retry %s/%s]: %s",
-                        self._name,
-                        i,
-                        retries,
-                        ex,
-                    )
-                    if i >= retries:
-                        raise ex
-                    await asyncio.sleep(RETRY_BACK_OFF)
+            await self._async_make_request(value, retries)
+        self._on_connection_event()
+
+    async def _async_make_request(self, value, retries=RETRIES):
+        self.retries = 0
+        conn = None
+        done = False
+        while not done:
+            self.retries += 1
+            self._on_connection_event()
+            try:
+                self.throw_if_terminating()
+                if (
+                    self.retries == RECONNECT_ON_RETRY
+                    and self._conn
+                    and self._conn.is_connected
+                ):
+                    await self._conn.disconnect()
+                conn = await self.async_get_connection()
+                self._notify_event.clear()
+                await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
+                await conn.write_gatt_char(PROP_WRITE_UUID, value)
+                await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
+                await conn.stop_notify(PROP_NTFY_UUID)
+                done = True
+            except Exception as ex:
+                self.throw_if_terminating()
+                _LOGGER.warning(
+                    "[%s] Broken connection [retry %s/%s]: %s",
+                    self._name,
+                    self.retries,
+                    retries,
+                    ex,
+                )
+                if self.retries >= retries:
+                    raise ex
+                await asyncio.sleep(RETRY_BACK_OFF)

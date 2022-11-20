@@ -3,7 +3,6 @@
 from __future__ import annotations
 import logging
 import asyncio
-from homeassistant.helpers import device_registry as dr
 
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
@@ -15,7 +14,6 @@ from .const import (
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
-from homeassistant.helpers import entity_platform
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.core import HomeAssistant, callback
@@ -35,29 +33,19 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.components.climate import HVACMode
 
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+from homeassistant.components.climate import ClimateEntity
 import voluptuous as vol
 
-from datetime import time, timedelta
+from datetime import timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
 )
 from homeassistant.config_entries import ConfigEntry
 
-from bleak.backends.device import BLEDevice
 
 SCAN_INTERVAL = timedelta(minutes=5)
 # PARALLEL_UPDATES = 0
-
-
-def json_serial(obj):
-    """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, time):
-        return {"hour": obj.hour, "minute": obj.minute}
-    # raise TypeError ("Type %s not serializable" % type(obj))
-    return None
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,50 +98,31 @@ SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Add cover for passed entry in HA."""
-    eq3 = EQ3BTSmartThermostat(entry.data["mac"], entry.data["name"], hass)
-    devices = []
-    devices.append(eq3)
+    eq3 = hass.data[DOMAIN][config_entry.entry_id]
+
+    new_entities = [EQ3BTSmartThermostat(eq3, hass)]
+
     async_add_entities(
-        devices,
+        new_entities,
         update_before_add=False,
-    )
-
-    platform = entity_platform.async_get_current_platform()
-
-    platform.async_register_entity_service(
-        "fetch_serial",
-        {},
-        EQ3BTSmartThermostat.fetch_serial.__name__,
-    )
-
-    platform.async_register_entity_service(
-        "fetch_schedule",
-        {},
-        EQ3BTSmartThermostat.fetch_schedule.__name__,
-    )
-    platform.async_register_entity_service(
-        "set_schedule",
-        {},
-        EQ3BTSmartThermostat.set_schedule.__name__,
     )
 
 
 class EQ3BTSmartThermostat(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _mac: str, _device_name: str, _hass: HomeAssistant):
+    def __init__(self, _thermostat: eq3.Thermostat, _hass: HomeAssistant):
         """Initialize the thermostat."""
-        # We want to avoid name clash with this module.
         self.hass = _hass
-        self._mac = _mac
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
-        self._thermostat = eq3.Thermostat(_mac, _device_name, _hass, self._on_updated)
+        self._thermostat = _thermostat
+        self._thermostat.register_update_callback(self._on_updated)
         # HA forces an update after any prop is set (temp, mode, etc)
         # But each time anything is set, the thermostat responds with the most current data
         # This means after setting a prop, we can skip the next scheduled update.
@@ -164,15 +133,13 @@ class EQ3BTSmartThermostat(ClimateEntity):
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
         self._attr_name = None
-        self._device_name = _device_name
 
     async def async_added_to_hass(self) -> None:
-        _LOGGER.debug("[%s] adding", self._device_name)
+        _LOGGER.debug("[%s] adding", self._thermostat.name)
         asyncio.get_event_loop().create_task(self.async_update())
 
     async def async_will_remove_from_hass(self) -> None:
-        _LOGGER.debug("[%s] removing", self._device_name)
-        self._thermostat.shutdown()
+        _LOGGER.debug("[%s] removing", self._thermostat.name)
 
     @callback
     def _on_updated(self):
@@ -183,7 +150,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
             # temperature may have been updated from the thermostat
             self._current_temperature = self.target_temperature
         if self.entity_id is None:
-            _LOGGER.warn("[%s] Updated but the entity is not loaded", self._device_name)
+            _LOGGER.warn(
+                "[%s] Updated but the entity is not loaded", self._thermostat.name
+            )
             return
         self.schedule_update_ha_state(force_refresh=False)
 
@@ -272,72 +241,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         return EQ3BT_MAX_TEMP
 
     @property
-    def extra_state_attributes(self):
-        """Return the device specific state attributes."""
-        schedule = {}
-
-        def stringifyTime(timeObj):
-            if isinstance(timeObj, time):
-                return str(timeObj.hour) + ":" + str(timeObj.minute)
-            return None
-
-        for day in self._thermostat.schedule:
-            obj = self._thermostat.schedule[day]
-
-            def mapFunc(hourObj):
-                return {
-                    "target_temp": hourObj.target_temp,
-                    "next_change_at": stringifyTime(hourObj.next_change_at),
-                }
-
-            schedule[day] = {
-                "base_temp": obj.base_temp,
-                "next_change_at": stringifyTime(obj.next_change_at),
-                "hours": list(map(mapFunc, obj.hours)),
-            }
-        dev_specific = {
-            ATTR_STATE_AWAY_END: self._thermostat.away_end,
-            ATTR_STATE_LOCKED: self._thermostat.locked,
-            ATTR_STATE_LOW_BAT: self._thermostat.low_battery,
-            ATTR_STATE_VALVE: self._thermostat.valve_state,
-            ATTR_STATE_WINDOW_OPEN: self._thermostat.window_open,
-            "rssi": self._thermostat.rssi,
-            "firmware_version": self._thermostat.firmware_version,
-            "device_serial": self._thermostat.device_serial,
-            "schedule": schedule,
-        }
-
-        return dev_specific
-
-    async def fetch_serial(self):
-        await self._thermostat.async_query_id()
-        device_registry = dr.async_get(self.hass)
-        device = device_registry.async_get_device(
-            identifiers={(DOMAIN, self._mac)},
-        )
-        if device:
-            device_registry.async_update_device(
-                device_id=device.id, sw_version=self._thermostat.firmware_version
-            )
-
-        _LOGGER.debug(
-            "[%s] firmware: %s serial: %s",
-            self._device_name,
-            self._thermostat.firmware_version,
-            self._thermostat.device_serial,
-        )
-
-    async def fetch_schedule(self):
-        for x in range(0, 7):
-            await self._thermostat.async_query_schedule(x)
-        _LOGGER.debug(
-            "[%s] schedule (day %s): %s", self._device_name, self._thermostat.schedule
-        )
-
-    def set_schedule(self, day: int = 0):
-        _LOGGER.debug("[%s] set_schedule (day %s)", self._device_name, day)
-
-    @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp.
         Requires SUPPORT_PRESET_MODE.
@@ -356,17 +259,17 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def unique_id(self) -> str:
         """Return the MAC address of the thermostat."""
-        return format_mac(self._mac)
+        return format_mac(self._thermostat.mac)
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            name=self._device_name,
+            name=self._thermostat.name,
             manufacturer="eQ-3 AG",
             model="CC-RT-BLE-EQ",
-            identifiers={(DOMAIN, self._mac)},
+            identifiers={(DOMAIN, self._thermostat.mac)},
             sw_version=self._thermostat.firmware_version,
-            connections={(CONNECTION_BLUETOOTH, self._mac)},
+            connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
         )
 
     async def async_set_preset_mode(self, preset_mode):
@@ -392,17 +295,17 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Update the data from the thermostat."""
         if self._skip_next_update:
             self._skip_next_update = False
-            _LOGGER.debug("[%s] skipped update", self._device_name)
+            _LOGGER.debug("[%s] skipped update", self._thermostat.name)
         else:
             try:
                 await self._thermostat.async_update()
-                if self._thermostat._device_serial == None:
-                    await self.fetch_serial()
                 if self._is_setting_temperature:
                     await self.async_set_temperature_now()
             except Exception as ex:
                 # otherwise, if this happens during the first update, the entity will be dropped and never update
                 self._is_available = False
                 _LOGGER.error(
-                    "[%s] Error updating, will retry later: %s", self._device_name, ex
+                    "[%s] Error updating, will retry later: %s",
+                    self._thermostat.name,
+                    ex,
                 )
