@@ -44,7 +44,7 @@ class Base(SwitchEntity):
 class LockedSwitch(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Locked"
+        self._attr_name = _thermostat.name + " Locked"
         self._attr_icon = "mdi:lock"
 
     async def async_turn_on(self):
@@ -61,7 +61,7 @@ class LockedSwitch(Base):
 class AwaySwitch(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Away"
+        self._attr_name = _thermostat.name + " Away"
         self._attr_icon = "mdi:lock"
 
     async def async_turn_on(self):

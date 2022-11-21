@@ -55,7 +55,7 @@ class BaseSensor(SensorEntity):
 class ValveSensor(BaseSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Valve"
+        self._attr_name = _thermostat.name + " Valve"
         self._attr_native_unit_of_measurement = "%"
 
     @property
@@ -66,7 +66,7 @@ class ValveSensor(BaseSensor):
 class AwayEndSensor(BaseSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Away until"
+        self._attr_name = _thermostat.name + " Away until"
         self._attr_device_class = "date"
 
     @property
@@ -77,7 +77,7 @@ class AwayEndSensor(BaseSensor):
 class RssiSensor(BaseSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Rssi"
+        self._attr_name = _thermostat.name + " Rssi"
         self._attr_native_unit_of_measurement = "dBm"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -89,7 +89,7 @@ class RssiSensor(BaseSensor):
 class SerialNumberSensor(BaseSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Serial"
+        self._attr_name = _thermostat.name + " Serial"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
@@ -100,7 +100,7 @@ class SerialNumberSensor(BaseSensor):
 class FirmwareVersionSensor(BaseSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Firmware Version"
+        self._attr_name = _thermostat.name + " Firmware Version"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_added_to_hass(self) -> None:
@@ -133,7 +133,7 @@ class FirmwareVersionSensor(BaseSensor):
 class MacSensor(BaseSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "MAC"
+        self._attr_name = _thermostat.name + " MAC"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
@@ -144,7 +144,7 @@ class MacSensor(BaseSensor):
 class RetriesSensor(SensorEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
-        self._attr_name = "Retries"
+        self._attr_name = _thermostat.name + " Retries"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
 

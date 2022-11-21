@@ -65,7 +65,7 @@ class Base(ButtonEntity):
 class FetchScheduleButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Fetch Schedule"
+        self._attr_name = _thermostat.name + " Fetch Schedule"
 
     async def async_press(self) -> None:
         await self.fetch_schedule()
@@ -115,7 +115,7 @@ class FetchScheduleButton(Base):
 class ForceQueryButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Force Query"
+        self._attr_name = _thermostat.name + " Force Query"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
@@ -125,7 +125,7 @@ class ForceQueryButton(Base):
 class ForceDisconnectButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Force Disconnect"
+        self._attr_name = _thermostat.name + " Force Disconnect"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
