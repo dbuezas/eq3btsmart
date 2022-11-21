@@ -69,8 +69,8 @@ class BleakConnection:
             raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
-        if self._conn and self._conn.is_connected:
-            return self._conn
+        # if self._conn and self._conn.is_connected:
+        #     return self._conn
         ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._mac, connectable=True
         )
