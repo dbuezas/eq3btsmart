@@ -40,6 +40,7 @@ from datetime import timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
+    Mode,
 )
 from homeassistant.config_entries import ConfigEntry
 
@@ -167,7 +168,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return the current operation mode."""
-        if self._thermostat.mode < 0:
+        if self._thermostat.mode == Mode.Unknown:
             return HVAC_MODE_OFF
         return EQ_TO_HA_HVAC[self._thermostat.mode]
 

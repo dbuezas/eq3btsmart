@@ -34,6 +34,7 @@ async def async_setup_entry(
 class BaseStateSensor(BinarySensorEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
+        self._attr_has_entity_name = True
         _thermostat.register_update_callback(self.schedule_update_ha_state)
 
     @property
@@ -51,6 +52,7 @@ class BaseStateSensor(BinarySensorEntity):
 class BaseConnectionSensor(BinarySensorEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
+        self._attr_has_entity_name = True
         _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -69,7 +71,7 @@ class BaseConnectionSensor(BinarySensorEntity):
 class BussySensor(BaseConnectionSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = _thermostat.name + " Busy"
+        self._attr_name = "Busy"
 
     @property
     def is_on(self):
@@ -79,7 +81,7 @@ class BussySensor(BaseConnectionSensor):
 class ConnectedSensor(BaseConnectionSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = _thermostat.name + " Connected"
+        self._attr_name = "Connected"
         self._attr_device_class = "connectivity"
 
     @property
@@ -92,7 +94,7 @@ class ConnectedSensor(BaseConnectionSensor):
 class BatterySensor(BaseStateSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = _thermostat.name + " Battery"
+        self._attr_name = "Battery"
         self._attr_device_class = "battery"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -104,7 +106,7 @@ class BatterySensor(BaseStateSensor):
 class WindowOpenSensor(BaseStateSensor):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = _thermostat.name + " Window Open"
+        self._attr_name = "Window Open"
         self._attr_device_class = "window"
 
     @property

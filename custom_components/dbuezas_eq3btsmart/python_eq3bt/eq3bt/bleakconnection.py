@@ -81,15 +81,18 @@ class BleakConnection:
                 self._name,
                 ble_device.rssi,
             )
+            self._on_connection_event()
             self._conn = await establish_connection(
-                BleakClient,
-                ble_device,
-                self._name,
-                lambda client: self._on_connection_event(),
-                MAX_ATTEMPTS=2,  # there is a retry loop on make_request
+                client_class=BleakClient,
+                device=ble_device,
+                name=self._name,
+                disconnected_callback=lambda client: self._on_connection_event(),
+                max_attempts=2,
+                # cached_services: BleakGATTServiceCollection | None = None,
+                # ble_device_callback:Callable[[], BLEDevice] | None = None,
+                use_services_cache=True,
             )
-            for callback in self._connection_callbacks:
-                callback()
+            self._on_connection_event()
 
         else:
             _LOGGER.debug(

@@ -81,7 +81,7 @@ class Thermostat:
         self._target_temperature = Mode.Unknown
         self.name = name
         self._mode = Mode.Unknown
-        self._valve_state = Mode.Unknown
+        self._valve_state = None
         self._raw_mode = None
 
         self._schedule = {}
