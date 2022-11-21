@@ -128,31 +128,32 @@ class BleakConnection:
     async def async_make_request(self, value, retries=RETRIES):
         """Write a GATT Command without callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
-            await self._async_make_request(value, retries)
-        self._on_connection_event()
+            try:
+                await self._async_make_request_try(value, retries)
+            finally:
+                self.retries = 0
+                self._on_connection_event()
 
-    async def _async_make_request(self, value, retries=RETRIES):
+    async def _async_make_request_try(self, value, retries):
         self.retries = 0
-        conn = None
-        done = False
-        while not done:
+        while True:
             self.retries += 1
             self._on_connection_event()
             try:
                 self.throw_if_terminating()
-                if (
-                    self.retries == RECONNECT_ON_RETRY
-                    and self._conn
-                    and self._conn.is_connected
-                ):
-                    await self._conn.disconnect()
+                # if (
+                #     self.retries == RECONNECT_ON_RETRY
+                #     and self._conn
+                #     and self._conn.is_connected
+                # ):
+                #     await self._conn.disconnect()
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
                 await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
                 await conn.write_gatt_char(PROP_WRITE_UUID, value)
                 await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
                 await conn.stop_notify(PROP_NTFY_UUID)
-                done = True
+                return
             except Exception as ex:
                 self.throw_if_terminating()
                 _LOGGER.warning(
