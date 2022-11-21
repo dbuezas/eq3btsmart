@@ -1,7 +1,8 @@
 {
   "domain": "dbuezas_eq3btsmart",
-  "name": "dbuezas EQ3 Bluetooth Smart Thermostats",
-  "documentation": "https://www.home-assistant.io/integrations/eq3btsmart",
+  "name": "eQ-3 Bluetooth Smart Thermostats (dbuezas)",
+  "documentation": "https://github.com/dbuezas/eq3btsmart",
+  "issue_tracker": "https://github.com/dbuezas/eq3btsmart/issues",
   "requirements": ["construct==2.10.56"],
   "dependencies": ["bluetooth"],
   "codeowners": ["@dbuezas", "@rytilahti", "@lkempf"],
