@@ -8,7 +8,7 @@
   "codeowners": ["@dbuezas", "@rytilahti", "@lkempf"],
   "iot_class": "local_polling",
   "loggers": ["bleak", "eq3bt"],
-  "version": "2.0.0",
+  "version": "2.0.2",
   "config_flow": true,
   "bluetooth": [{ "local_name": "CC-RT-BLE" }]
 }
