@@ -41,6 +41,7 @@ from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
     Mode,
+    Thermostat,
 )
 from homeassistant.config_entries import ConfigEntry
 
@@ -75,7 +76,7 @@ async def async_setup_entry(
 class EQ3BTSmartThermostat(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _thermostat: eq3.Thermostat, _hass: HomeAssistant):
+    def __init__(self, _thermostat: Thermostat, _hass: HomeAssistant):
         """Initialize the thermostat."""
         self.hass = _hass
         self._current_temperature = None

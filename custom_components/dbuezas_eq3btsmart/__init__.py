@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -29,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Store an instance of the "connecting" class that does the work of speaking
     # with your actual devices.
-    thermostat = eq3.Thermostat(entry.data["mac"], entry.data["name"], hass)
+    thermostat = Thermostat(entry.data["mac"], entry.data["name"], hass)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = thermostat
 
     # This creates each HA object for each platform your device requires.
