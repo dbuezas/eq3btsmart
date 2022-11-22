@@ -131,7 +131,7 @@ Status = "Status" / Struct(
     "cmd" / Const(PROP_INFO_RETURN, Int8ub),
     Const(0x01, Int8ub),
     "mode" / ModeFlags,
-    "valve" / Int8ub,
+    "valve" / Int8ub,  # type: ignore
     Const(0x04, Int8ub),
     "target_temp" / TempAdapter(Int8ub),
     "away"
@@ -166,7 +166,7 @@ Schedule = "Schedule" / Struct(
 
 DeviceId = "DeviceId" / Struct(
     "cmd" / Const(PROP_ID_RETURN, Int8ub),
-    "version" / Int8ub,
+    "version" / Int8ub,  # type: ignore
     Int8ub,
     Int8ub,
     "serial" / DeviceSerialAdapter(Bytes(10)),

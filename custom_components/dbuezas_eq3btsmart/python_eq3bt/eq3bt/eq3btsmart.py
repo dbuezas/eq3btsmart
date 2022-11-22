@@ -132,6 +132,8 @@ class Thermostat:
     def parse_schedule(self, data):
         """Parses the device sent schedule."""
         sched = Schedule.parse(data)
+        if sched == None:
+            raise Exception("Parsed empty schedule data")
         _LOGGER.debug("[%s] Got schedule data for day '%s'", self.name, sched.day)
 
         return sched
@@ -144,7 +146,8 @@ class Thermostat:
             _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
             status = Status.parse(data)
             _LOGGER.debug("[%s] Parsed status: %s", self.name, status)
-
+            if status == None:
+                raise Exception("Received empty status data")
             self._raw_mode = status.mode
             self._valve_state = status.valve
             self._target_temperature = status.target_temp
@@ -205,6 +208,8 @@ class Thermostat:
         elif data[0] == PROP_ID_RETURN:
             parsed = DeviceId.parse(data)
             _LOGGER.debug("[%s] Parsed device data: %s", self.name, parsed)
+            if parsed is None:
+                raise Exception("Parsed empty DeviceID data")
             self._firmware_version = parsed.version
             self._device_serial = parsed.serial
 
@@ -263,11 +268,6 @@ class Thermostat:
         """Sets the schedule for the given day."""
         value = Schedule.build(data)
         await self._conn.async_make_request(value)
-
-    @property
-    def rssi(self):
-        """Return the rssi of the BLEDevice."""
-        return self._conn.rssi
 
     @property
     def target_temperature(self):
@@ -331,7 +331,7 @@ class Thermostat:
         _LOGGER.debug(
             "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
         )
-        adapter = AwayDataAdapter(Byte[4])
+        adapter = AwayDataAdapter(Byte[4])  # type: ignore
         packed = adapter.build(away_end)
 
         await self._async_set_mode(0x80 | int(temperature * 2), packed)
@@ -347,7 +347,8 @@ class Thermostat:
         """Return a readable representation of the mode.."""
         ret = ""
         mode = self._raw_mode
-
+        if mode == None:
+            raise Exception("_raw_mode is empty")
         if mode.MANUAL:
             ret = "manual"
             if self.target_temperature < self.min_temp:
