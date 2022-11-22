@@ -152,10 +152,11 @@ class BleakConnection:
                 #     await self._conn.disconnect()
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
-                await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                await conn.write_gatt_char(PROP_WRITE_UUID, value)
-                await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
-                await conn.stop_notify(PROP_NTFY_UUID)
+                if value != "ONLY CONNECT":
+                    await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
+                    await conn.write_gatt_char(PROP_WRITE_UUID, value)
+                    await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
+                    await conn.stop_notify(PROP_NTFY_UUID)
                 return
             except Exception as ex:
                 self.throw_if_terminating()

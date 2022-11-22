@@ -1,8 +1,9 @@
+from .const import DOMAIN
 import logging
 
 from homeassistant.helpers.device_registry import format_mac
 from .python_eq3bt.eq3bt.eq3btsmart import Mode, Thermostat
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.switch import SwitchEntity
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -10,7 +11,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
-from .const import DOMAIN
 
 
 async def async_setup_entry(
@@ -20,7 +20,7 @@ async def async_setup_entry(
 ) -> None:
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
 
-    new_devices = [LockedSwitch(eq3), AwaySwitch(eq3)]
+    new_devices = [LockedSwitch(eq3), AwaySwitch(eq3), ConnectionSwitch(eq3)]
     async_add_entities(new_devices)
 
 
@@ -28,7 +28,7 @@ class Base(SwitchEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_assumed_state = True
 
     @property
     def unique_id(self) -> str:
@@ -44,6 +44,7 @@ class Base(SwitchEntity):
 class LockedSwitch(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Locked"
         self._attr_icon = "mdi:lock"
 
@@ -61,6 +62,7 @@ class LockedSwitch(Base):
 class AwaySwitch(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Away"
         self._attr_icon = "mdi:lock"
 
@@ -77,4 +79,29 @@ class AwaySwitch(Base):
 
     @property
     def is_on(self):
+        if self._thermostat.mode == Mode.Unknown:
+            return None
         return self._thermostat.mode == Mode.Away
+
+
+class ConnectionSwitch(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat._conn.register_connection_callback(
+            self.schedule_update_ha_state)
+        self._attr_name = "Connection"
+        self._attr_icon = "mdi:bluetooth"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    async def async_turn_on(self):
+        await self._thermostat._conn.async_make_request("ONLY CONNECT")
+
+    async def async_turn_off(self):
+        if self._thermostat._conn._conn:
+            await self._thermostat._conn._conn.disconnect()
+
+    @property
+    def is_on(self):
+        if self._thermostat._conn._conn is None:
+            return None
+        return self._thermostat._conn._conn.is_connected

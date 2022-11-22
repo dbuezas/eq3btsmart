@@ -25,7 +25,6 @@ async def async_setup_entry(
     new_devices = [
         FetchScheduleButton(eq3),
         ForceQueryButton(eq3),
-        ForceDisconnectButton(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -49,7 +48,6 @@ class Base(ButtonEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
 
     @property
     def unique_id(self) -> str:
@@ -65,6 +63,7 @@ class Base(ButtonEntity):
 class FetchScheduleButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Fetch Schedule"
 
     async def async_press(self) -> None:
@@ -120,14 +119,3 @@ class ForceQueryButton(Base):
 
     async def async_press(self) -> None:
         await self._thermostat.async_update()
-
-
-class ForceDisconnectButton(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Force Disconnect"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    async def async_press(self) -> None:
-        if self._thermostat._conn._conn:
-            await self._thermostat._conn._conn.disconnect()
