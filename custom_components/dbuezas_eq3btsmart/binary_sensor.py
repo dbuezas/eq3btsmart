@@ -25,7 +25,8 @@ async def async_setup_entry(
     new_devices = [
         BatterySensor(eq3),
         WindowOpenSensor(eq3),
-        BussySensor(eq3),
+        BusySensor(eq3),
+        ConnectedSensor(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -47,17 +48,31 @@ class Base(BinarySensorEntity):
         )
 
 
-class BussySensor(Base):
+class BusySensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        _thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_name = "Busy"
 
     @property
     def is_on(self):
         return self._thermostat._conn._lock.locked()
+
+
+class ConnectedSensor(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_name = "Connected"
+        self._attr_device_class = "connectivity"
+
+    @property
+    def is_on(self):
+        if self._thermostat._conn._conn is None:
+            return False
+        return self._thermostat._conn._conn.is_connected
 
 
 class BatterySensor(Base):

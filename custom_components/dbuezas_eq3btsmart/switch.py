@@ -28,7 +28,6 @@ class Base(SwitchEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
-        self._attr_assumed_state = True
 
     @property
     def unique_id(self) -> str:
@@ -87,10 +86,10 @@ class AwaySwitch(Base):
 class ConnectionSwitch(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        _thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_name = "Connection"
         self._attr_icon = "mdi:bluetooth"
+        self._attr_assumed_state = True
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_turn_on(self):
