@@ -1,3 +1,4 @@
+from .const import DOMAIN
 import logging
 
 from homeassistant.helpers.device_registry import format_mac
@@ -11,7 +12,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
-from .const import DOMAIN
 
 
 async def async_setup_entry(
