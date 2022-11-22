@@ -18,7 +18,6 @@ from . import BackendException
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
 RETRIES = 14
-RECONNECT_ON_RETRY = 7
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -69,8 +68,6 @@ class BleakConnection:
             raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
-        if self._conn and self._conn.is_connected:
-            return self._conn
         ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._mac, connectable=True
         )
@@ -81,15 +78,18 @@ class BleakConnection:
                 self._name,
                 ble_device.rssi,
             )
+            self._on_connection_event()
             self._conn = await establish_connection(
-                BleakClient,
-                ble_device,
-                self._name,
-                lambda client: self._on_connection_event(),
-                MAX_ATTEMPTS=2,  # there is a retry loop on make_request
+                client_class=BleakClient,
+                device=ble_device,
+                name=self._name,
+                disconnected_callback=lambda client: self._on_connection_event(),
+                max_attempts=2,
+                # cached_services: BleakGATTServiceCollection | None = None,
+                # ble_device_callback:Callable[[], BLEDevice] | None = None,
+                use_services_cache=True,
             )
-            for callback in self._connection_callbacks:
-                callback()
+            self._on_connection_event()
 
         else:
             _LOGGER.debug(
@@ -128,31 +128,27 @@ class BleakConnection:
     async def async_make_request(self, value, retries=RETRIES):
         """Write a GATT Command without callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
-            await self._async_make_request(value, retries)
-        self._on_connection_event()
+            try:
+                await self._async_make_request_try(value, retries)
+            finally:
+                self.retries = 0
+                self._on_connection_event()
 
-    async def _async_make_request(self, value, retries=RETRIES):
+    async def _async_make_request_try(self, value, retries):
         self.retries = 0
-        conn = None
-        done = False
-        while not done:
+        while True:
             self.retries += 1
             self._on_connection_event()
             try:
                 self.throw_if_terminating()
-                if (
-                    self.retries == RECONNECT_ON_RETRY
-                    and self._conn
-                    and self._conn.is_connected
-                ):
-                    await self._conn.disconnect()
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
-                await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                await conn.write_gatt_char(PROP_WRITE_UUID, value)
-                await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
-                await conn.stop_notify(PROP_NTFY_UUID)
-                done = True
+                if value != "ONLY CONNECT":
+                    await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
+                    await conn.write_gatt_char(PROP_WRITE_UUID, value)
+                    await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
+                    await conn.stop_notify(PROP_NTFY_UUID)
+                return
             except Exception as ex:
                 self.throw_if_terminating()
                 _LOGGER.warning(

@@ -6,10 +6,12 @@ import asyncio
 
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
+    EQ_TO_HA_HVAC,
+    EQ_TO_HA_PRESET,
+    HA_TO_EQ_HVAC,
+    HA_TO_EQ_PRESET,
     PRESET_CLOSED,
-    PRESET_NO_HOLD,
     PRESET_OPEN,
-    PRESET_PERMANENT_HOLD,
     DOMAIN,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -25,8 +27,6 @@ from homeassistant.const import (
 )
 from homeassistant.components.climate.const import (
     HVAC_MODE_OFF,
-    PRESET_AWAY,
-    PRESET_BOOST,
     PRESET_NONE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
@@ -40,6 +40,8 @@ from datetime import timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
+    Mode,
+    Thermostat,
 )
 from homeassistant.config_entries import ConfigEntry
 
@@ -48,47 +50,6 @@ SCAN_INTERVAL = timedelta(minutes=5)
 # PARALLEL_UPDATES = 0
 
 _LOGGER = logging.getLogger(__name__)
-
-STATE_BOOST = "boost"
-
-ATTR_STATE_WINDOW_OPEN = "window_open"
-ATTR_STATE_VALVE = "valve"
-ATTR_STATE_LOCKED = "is_locked"
-ATTR_STATE_LOW_BAT = "low_battery"
-ATTR_STATE_AWAY_END = "away_end"
-
-EQ_TO_HA_HVAC = {
-    eq3.Mode.Open: HVACMode.HEAT,
-    eq3.Mode.Closed: HVACMode.OFF,
-    eq3.Mode.Auto: HVACMode.AUTO,
-    eq3.Mode.Manual: HVACMode.HEAT,
-    eq3.Mode.Boost: HVACMode.AUTO,
-    eq3.Mode.Away: HVACMode.HEAT,
-}
-
-HA_TO_EQ_HVAC = {
-    HVACMode.HEAT: eq3.Mode.Manual,
-    HVACMode.OFF: eq3.Mode.Closed,
-    HVACMode.AUTO: eq3.Mode.Auto,
-}
-
-EQ_TO_HA_PRESET = {
-    eq3.Mode.Boost: PRESET_BOOST,
-    eq3.Mode.Away: PRESET_AWAY,
-    eq3.Mode.Manual: PRESET_PERMANENT_HOLD,
-    eq3.Mode.Auto: PRESET_NO_HOLD,
-    eq3.Mode.Open: PRESET_OPEN,
-    eq3.Mode.Closed: PRESET_CLOSED,
-}
-
-HA_TO_EQ_PRESET = {
-    PRESET_OPEN: eq3.Mode.Open,
-    PRESET_CLOSED: eq3.Mode.Closed,
-    PRESET_NO_HOLD: eq3.Mode.Auto,
-    PRESET_PERMANENT_HOLD: eq3.Mode.Manual,
-    PRESET_BOOST: eq3.Mode.Boost,
-    PRESET_AWAY: eq3.Mode.Away,
-}
 
 
 DEVICE_SCHEMA = vol.Schema({vol.Required(CONF_MAC): cv.string})
@@ -115,7 +76,7 @@ async def async_setup_entry(
 class EQ3BTSmartThermostat(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _thermostat: eq3.Thermostat, _hass: HomeAssistant):
+    def __init__(self, _thermostat: Thermostat, _hass: HomeAssistant):
         """Initialize the thermostat."""
         self.hass = _hass
         self._current_temperature = None
@@ -208,7 +169,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return the current operation mode."""
-        if self._thermostat.mode < 0:
+        if self._thermostat.mode == Mode.Unknown:
             return HVAC_MODE_OFF
         return EQ_TO_HA_HVAC[self._thermostat.mode]
 

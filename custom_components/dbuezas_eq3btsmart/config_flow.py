@@ -77,7 +77,8 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if self.discovery_info is None:
             # mainly to shut up the type checker
             return self.async_abort(reason="not_supported")
-        self._async_abort_entries_match({CONF_MAC: self.discovery_info.address})
+        self._async_abort_entries_match(
+            {CONF_MAC: self.discovery_info.address})
         if user_input is None:
             name = self.discovery_info.device.name or self.discovery_info.name
             return self.async_show_form(
@@ -96,5 +97,6 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(format_mac(self.discovery_info.address))
         return self.async_create_entry(
             title=user_input[CONF_NAME],
-            data={"name": user_input["name"], "mac": self.discovery_info.address},
+            data={"name": user_input["name"],
+                  "mac": self.discovery_info.address},
         )

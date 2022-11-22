@@ -1,3 +1,4 @@
+from .const import DOMAIN
 import asyncio
 import json
 import logging
@@ -12,7 +13,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 _LOGGER = logging.getLogger(__name__)
-from .const import DOMAIN
 
 
 async def async_setup_entry(
@@ -35,10 +35,10 @@ async def async_setup_entry(
     async_add_entities(new_devices)
 
 
-class BaseSensor(SensorEntity):
+class Base(SensorEntity):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_has_entity_name = True
 
     @property
     def unique_id(self) -> str:
@@ -52,9 +52,10 @@ class BaseSensor(SensorEntity):
         )
 
 
-class ValveSensor(BaseSensor):
+class ValveSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Valve"
         self._attr_native_unit_of_measurement = "%"
 
@@ -63,9 +64,10 @@ class ValveSensor(BaseSensor):
         return self._thermostat.valve_state
 
 
-class AwayEndSensor(BaseSensor):
+class AwayEndSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Away until"
         self._attr_device_class = "date"
 
@@ -74,21 +76,23 @@ class AwayEndSensor(BaseSensor):
         return self._thermostat.away_end if self._thermostat.mode == Mode.Away else None
 
 
-class RssiSensor(BaseSensor):
+class RssiSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_name = "Rssi"
         self._attr_native_unit_of_measurement = "dBm"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def state(self):
-        return self._thermostat.rssi
+        return self._thermostat._conn.rssi
 
 
-class SerialNumberSensor(BaseSensor):
+class SerialNumberSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Serial"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -97,9 +101,10 @@ class SerialNumberSensor(BaseSensor):
         return self._thermostat.device_serial
 
 
-class FirmwareVersionSensor(BaseSensor):
+class FirmwareVersionSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Firmware Version"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -130,7 +135,7 @@ class FirmwareVersionSensor(BaseSensor):
         return self._thermostat.firmware_version
 
 
-class MacSensor(BaseSensor):
+class MacSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
         self._attr_name = "MAC"
@@ -141,23 +146,12 @@ class MacSensor(BaseSensor):
         return self._thermostat.mac
 
 
-class RetriesSensor(SensorEntity):
+class RetriesSensor(Base):
     def __init__(self, _thermostat: Thermostat):
-        self._thermostat = _thermostat
+        super().__init__(_thermostat)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_name = "Retries"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
-
-    @property
-    def unique_id(self) -> str:
-        """Return the MAC address of the thermostat."""
-        return format_mac(self._thermostat.mac) + "_" + self.name
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
-        )
 
     @property
     def state(self):
