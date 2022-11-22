@@ -18,7 +18,6 @@ from . import BackendException
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
 RETRIES = 14
-RECONNECT_ON_RETRY = 7
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -69,8 +68,6 @@ class BleakConnection:
             raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
-        # if self._conn and self._conn.is_connected:
-        #     return self._conn
         ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._mac, connectable=True
         )
@@ -144,12 +141,6 @@ class BleakConnection:
             self._on_connection_event()
             try:
                 self.throw_if_terminating()
-                # if (
-                #     self.retries == RECONNECT_ON_RETRY
-                #     and self._conn
-                #     and self._conn.is_connected
-                # ):
-                #     await self._conn.disconnect()
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
                 if value != "ONLY CONNECT":
