@@ -12,7 +12,6 @@ import logging
 import struct
 from datetime import datetime, timedelta
 from enum import IntEnum
-from typing import Callable
 
 from construct import Byte
 
@@ -43,6 +42,8 @@ EQ3BT_MIN_TEMP = 5.0
 EQ3BT_MAX_TEMP = 29.5
 EQ3BT_OFF_TEMP = 4.5
 EQ3BT_ON_TEMP = 30.0
+EQ3BT_MIN_OFFSET = -3.5
+EQ3BT_MAX_OFFSET = 3.5
 
 
 class Mode(IntEnum):
@@ -55,9 +56,6 @@ class Mode(IntEnum):
     Manual = 3
     Away = 4
     Boost = 5
-
-
-MODE_NOT_TEMP = [Mode.Unknown, Mode.Closed, Mode.Open]
 
 
 class TemperatureException(Exception):
@@ -480,7 +478,7 @@ class Thermostat:
         _LOGGER.debug("[%s] Setting offset: %s", self.name, offset)
         # [-3,5 .. 0  .. 3,5 ]
         # [00   .. 07 .. 0e ]
-        if offset < -3.5 or offset > 3.5:
+        if offset < EQ3BT_MIN_OFFSET or offset > EQ3BT_MAX_OFFSET:
             raise TemperatureException("Invalid value: %s" % offset)
 
         current = -3.5
