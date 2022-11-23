@@ -3,16 +3,18 @@ from .python_eq3bt.eq3bt.eq3btsmart import Mode
 from homeassistant.components.climate import HVACMode
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 
+DOMAIN = "dbuezas_eq3btsmart"
 from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_BOOST,
+    PRESET_ECO,
+    PRESET_COMFORT,
 )
 
 PRESET_PERMANENT_HOLD = "Manual"
 PRESET_NO_HOLD = "Auto"
 PRESET_OPEN = "Open"
 PRESET_CLOSED = "Closed"
-DOMAIN = "dbuezas_eq3btsmart"
 
 
 EQ_TO_HA_HVAC = {
@@ -46,4 +48,6 @@ HA_TO_EQ_PRESET = {
     PRESET_PERMANENT_HOLD: Mode.Manual,
     PRESET_BOOST: Mode.Boost,
     PRESET_AWAY: Mode.Away,
+    PRESET_ECO: Mode.Unknown,
+    PRESET_COMFORT: Mode.Unknown,
 }

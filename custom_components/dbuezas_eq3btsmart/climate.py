@@ -27,6 +27,8 @@ from homeassistant.const import (
 )
 from homeassistant.components.climate.const import (
     HVAC_MODE_OFF,
+    PRESET_COMFORT,
+    PRESET_ECO,
     PRESET_NONE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
@@ -244,7 +246,11 @@ class EQ3BTSmartThermostat(ClimateEntity):
             self._is_setting_temperature = True
             self.async_schedule_update_ha_state(force_refresh=False)
         if preset_mode == PRESET_NONE:
-            await self.async_set_hvac_mode(HVACMode.HEAT)
+            return await self.async_set_hvac_mode(HVACMode.HEAT)
+        if preset_mode == PRESET_ECO:
+            return await self._thermostat.async_activate_eco()
+        if preset_mode == PRESET_COMFORT:
+            return await self._thermostat.async_activate_comfort()
         await self._thermostat.async_set_mode(HA_TO_EQ_PRESET[preset_mode])
 
         # by now, the target temperature should have been (maybe set) and fetched

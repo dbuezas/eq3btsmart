@@ -1,3 +1,4 @@
+from datetime import timedelta
 from .const import DOMAIN
 import logging
 
@@ -30,6 +31,8 @@ async def async_setup_entry(
         ComfortTemperature(eq3),
         EcoTemperature(eq3),
         OffsetTemperature(eq3),
+        WindowOpenTemperature(eq3),
+        WindowOpenTimeout(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -40,6 +43,8 @@ class Base(NumberEntity):
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
         self._attr_device_class = "temperature"
+        self._attr_native_unit_of_measurement = "°C"
+
         self._attr_native_step = 0.5
         self._attr_mode = NumberMode.BOX
 
@@ -58,7 +63,7 @@ class Base(NumberEntity):
 class ComfortTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Comfort"
+        self._attr_name = "Comfort Temperature"
         self._attr_native_min_value = EQ3BT_MIN_TEMP
         self._attr_native_max_value = EQ3BT_MAX_TEMP
 
@@ -75,7 +80,7 @@ class ComfortTemperature(Base):
 class EcoTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Eco"
+        self._attr_name = "Eco Temperature"
         self._attr_native_min_value = EQ3BT_MIN_TEMP
         self._attr_native_max_value = EQ3BT_MAX_TEMP
 
@@ -92,7 +97,7 @@ class EcoTemperature(Base):
 class OffsetTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Offset"
+        self._attr_name = "Offset Temperature"
         self._attr_native_min_value = EQ3BT_MIN_OFFSET
         self._attr_native_max_value = EQ3BT_MAX_OFFSET
 
@@ -102,3 +107,45 @@ class OffsetTemperature(Base):
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_set_temperature_offset(value)
+
+
+class WindowOpenTemperature(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        self._attr_name = "Window Open Temperature"
+        self._attr_native_min_value = EQ3BT_MIN_OFFSET
+        self._attr_native_max_value = EQ3BT_MAX_OFFSET
+
+    @property
+    def native_value(self):
+        return self._thermostat.window_open_temperature
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self._thermostat.async_update()  # to ensure the other value is up to date
+        await self._thermostat.async_window_open_config(
+            temperature=value, duration=self._thermostat.window_open_time
+        )
+
+
+class WindowOpenTimeout(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        self._attr_name = "Window Open Timeout"
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 60
+        self._attr_device_class = None
+        self._attr_native_step = 5
+        self._attr_native_unit_of_measurement = "minutes"
+
+    @property
+    def native_value(self):
+        if self._thermostat.window_open_time is None:
+            return None
+        return self._thermostat.window_open_time.total_seconds() / 60
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self._thermostat.async_update()  # to ensure the other value is up to date
+        await self._thermostat.async_window_open_config(
+            temperature=self._thermostat.window_open_temperature,
+            duration=timedelta(minutes=value),
+        )

@@ -422,7 +422,7 @@ class Thermostat:
         return self._window_open_temperature
 
     @property
-    def window_open_time(self):
+    def window_open_time(self) -> timedelta | None:
         """Timeout to reset the thermostat after an open window is detected."""
         return self._window_open_time
 
