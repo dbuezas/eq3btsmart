@@ -13,7 +13,9 @@ from homeassistant.components.climate.const import (
 )
 
 EQ_TO_HA_HVAC = {
+    Mode.Unknown: HVACMode.HEAT,
     Mode.Off: HVACMode.OFF,
+    Mode.On: HVACMode.HEAT,
     Mode.Auto: HVACMode.AUTO,
     Mode.Manual: HVACMode.HEAT,
 }
@@ -27,9 +29,9 @@ HA_TO_EQ_HVAC = {
 
 class Preset(str, Enum):
     NONE = PRESET_NONE
-    BOOST = PRESET_BOOST
     ECO = PRESET_ECO
     COMFORT = PRESET_COMFORT
+    BOOST = PRESET_BOOST
     AWAY = PRESET_AWAY
     LOCKED = "Locked"
     OPEN = "Open"

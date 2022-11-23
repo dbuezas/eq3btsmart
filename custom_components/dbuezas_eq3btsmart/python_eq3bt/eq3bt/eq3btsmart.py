@@ -242,12 +242,14 @@ class Thermostat:
     def away_end(self):
         return self._status and self._status.away
 
-    async def async_set_away(self, away_end=None, temperature=EQ3BT_AWAY_TEMP):
-        """Sets away mode with target temperature. To disable away mode, set mode to auto or manual"""
-        if not away_end:
+    async def async_set_away(self, away: bool):
+        """Sets away mode with default temperature."""
+        if not away:
             _LOGGER.debug("[%s] Disabling away, going to auto mode.", self.name)
             return await self._async_set_mode(0x00)
 
+        away_end = datetime.now() + timedelta(days=self.default_away_days)
+        temperature = self.default_away_temp
         _LOGGER.debug(
             "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
         )

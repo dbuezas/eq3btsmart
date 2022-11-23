@@ -20,7 +20,8 @@ async def async_setup_entry(
 ) -> None:
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
 
-    new_devices = [LockedSwitch(eq3), ConnectionSwitch(eq3)]
+    new_devices = [LockedSwitch(eq3), AwaySwitch(eq3), ConnectionSwitch(eq3)]
+
     async_add_entities(new_devices)
 
 
@@ -57,6 +58,24 @@ class LockedSwitch(Base):
     @property
     def is_on(self):
         return self._thermostat.locked
+
+
+class AwaySwitch(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = "Away"
+        self._attr_icon = "mdi:lock"
+
+    async def async_turn_on(self):
+        await self._thermostat.async_set_away(True)
+
+    async def async_turn_off(self):
+        await self._thermostat.async_set_away(False)
+
+    @property
+    def is_on(self):
+        return self._thermostat.away
 
 
 class ConnectionSwitch(Base):

@@ -34,7 +34,7 @@ async def async_setup_entry(
         WindowOpenTemperature(eq3),
         WindowOpenTimeout(eq3),
         AwayForDays(eq3),
-        # AwayTemperature(eq3),
+        AwayTemperature(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -67,7 +67,7 @@ class Base(NumberEntity):
 class ComfortTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Comfort Temperature"
+        self._attr_name = "Comfort"
 
     @property
     def native_value(self):
@@ -82,7 +82,7 @@ class ComfortTemperature(Base):
 class EcoTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Eco Temperature"
+        self._attr_name = "Eco"
 
     @property
     def native_value(self):
@@ -97,7 +97,7 @@ class EcoTemperature(Base):
 class OffsetTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Offset Temperature"
+        self._attr_name = "Offset"
         self._attr_native_min_value = EQ3BT_MIN_OFFSET
         self._attr_native_max_value = EQ3BT_MAX_OFFSET
 
@@ -112,7 +112,7 @@ class OffsetTemperature(Base):
 class WindowOpenTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Window Open Temperature"
+        self._attr_name = "Window Open"
 
     @property
     def native_value(self):
@@ -164,14 +164,13 @@ class WindowOpenTimeout(NumberEntity):
 
 class AwayForDays(RestoreNumber):
     def __init__(self, _thermostat: Thermostat):
-        super().__init__()
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.BOX
         self._attr_name = "Away Days"
         self._attr_native_min_value = 0
         self._attr_native_max_value = 365
-        self._attr_native_step = 1
+        self._attr_native_step = 0.5
         self._attr_native_unit_of_measurement = "days"
 
     @property
@@ -187,37 +186,23 @@ class AwayForDays(RestoreNumber):
 
     async def async_added_to_hass(self) -> None:
         """Restore last state."""
-        await super().async_added_to_hass()
+
         data = await self.async_get_last_number_data()
-        if data and data.native_value:
+        if data and data.native_value != None:
             self._thermostat.default_away_days = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
         self._thermostat.default_away_days = value
 
+    @property
     def native_value(self) -> float | None:
         return self._thermostat.default_away_days
 
 
-class AwayTemperature(RestoreNumber):
+class AwayTemperature(Base, RestoreNumber):
     def __init__(self, _thermostat: Thermostat):
-        super().__init__()
-        self._thermostat = _thermostat
-        self._attr_has_entity_name = True
-        self._attr_native_min_value = EQ3BT_MIN_TEMP
-        self._attr_native_max_value = EQ3BT_MAX_TEMP
-
-        self._attr_native_step = 0.5
-        self._attr_mode = NumberMode.BOX
-        self._attr_name = "Away Temperature"
-
-    @property
-    def unit_of_measurement(self) -> str:
-        return "°C"
-
-    @property
-    def name(self) -> str:
-        return "Away Temperature"
+        super().__init__(_thermostat)
+        self._attr_name = "Away"
 
     @property
     def unique_id(self) -> str:
@@ -232,13 +217,13 @@ class AwayTemperature(RestoreNumber):
 
     async def async_added_to_hass(self) -> None:
         """Restore last state."""
-        await super().async_added_to_hass()
         data = await self.async_get_last_number_data()
-        if data and data.native_value:
+        if data and data.native_value != None:
             self._thermostat.default_away_temp = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
         self._thermostat.default_away_temp = value
 
+    @property
     def native_value(self) -> float | None:
         return self._thermostat.default_away_temp

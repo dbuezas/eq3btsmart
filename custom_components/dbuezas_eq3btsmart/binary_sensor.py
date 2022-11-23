@@ -106,7 +106,7 @@ class DSTSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
         _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._attr_name = "DST"
+        self._attr_name = "dSt"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property

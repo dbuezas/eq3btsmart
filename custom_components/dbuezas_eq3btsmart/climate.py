@@ -120,7 +120,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def available(self) -> bool:
         """Return if thermostat is available."""
-        return True  # so
+        return self._is_available
 
     @property
     def temperature_unit(self):
@@ -202,8 +202,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Return the current preset mode, e.g., home, away, temp.
         Requires SUPPORT_PRESET_MODE.
         """
-        if not self._is_available:
-            return "Unreacheable"
         if self._thermostat.boost:
             return Preset.BOOST
         if self._thermostat.away:
@@ -224,11 +222,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
             case Preset.BOOST:
                 await self._thermostat.async_set_boost(True)
             case Preset.AWAY:
-                await self._thermostat.async_set_away(
-                    away_end=datetime.now()
-                    + timedelta(days=self._thermostat.default_away_days),
-                    temperature=self._thermostat.default_away_temp,
-                )
+                await self._thermostat.async_set_away(True)
             case Preset.LOCKED:
                 await self._thermostat.async_set_locked(True)
             case Preset.ECO:
@@ -243,7 +237,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
                 if self._thermostat.boost:
                     await self._thermostat.async_set_boost(False)
                 if self._thermostat.away:
-                    await self.async_set_hvac_mode(HVACMode.AUTO)
+                    await self._thermostat.async_set_away(False)
+                if self._thermostat.mode == Mode.On:
+                    await self._thermostat.async_activate_comfort()
 
         # by now, the target temperature should have been (maybe set) and fetched
         self._current_temperature = self.target_temperature
