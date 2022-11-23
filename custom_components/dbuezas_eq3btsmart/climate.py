@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import asyncio
 
-from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
     EQ_TO_HA_HVAC,
     HA_TO_EQ_HVAC,
@@ -180,10 +179,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
         if hvac_mode == HVACMode.OFF:
             self._current_temperature = EQ3BT_OFF_TEMP
             self._is_setting_temperature = True
-        elif hvac_mode == "Open":
-            self._current_temperature = EQ3BT_ON_TEMP
-            self._is_setting_temperature = True
-        else:
+        else:  # auto or manual/heat
             self._current_temperature = self.target_temperature
             self._is_setting_temperature = False
         self.async_schedule_update_ha_state(force_refresh=False)
@@ -229,7 +225,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
                 await self._thermostat.async_set_boost(True)
             case Preset.AWAY:
                 await self._thermostat.async_set_away(
-                    away_end=datetime.now() + timedelta(days=30), temperature=12
+                    away_end=datetime.now()
+                    + timedelta(days=self._thermostat.default_away_days),
+                    temperature=self._thermostat.default_away_temp,
                 )
             case Preset.LOCKED:
                 await self._thermostat.async_set_locked(True)
@@ -239,8 +237,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
                 await self._thermostat.async_activate_comfort()
             case Preset.OPEN:
                 await self._thermostat.async_set_mode(Mode.On)
-            case Preset.REFRESH:
-                await self._thermostat.async_update()
             case Preset.NONE:
                 if self._thermostat.locked:
                     await self._thermostat.async_set_locked(False)

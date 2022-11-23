@@ -11,7 +11,7 @@ from .python_eq3bt.eq3bt.eq3btsmart import (
     Thermostat,
 )
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -34,6 +34,7 @@ async def async_setup_entry(
         WindowOpenTemperature(eq3),
         WindowOpenTimeout(eq3),
         AwayForDays(eq3),
+        # AwayTemperature(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -45,6 +46,8 @@ class Base(NumberEntity):
         self._attr_has_entity_name = True
         self._attr_device_class = "temperature"
         self._attr_native_unit_of_measurement = "°C"
+        self._attr_native_min_value = EQ3BT_MIN_TEMP
+        self._attr_native_max_value = EQ3BT_MAX_TEMP
 
         self._attr_native_step = 0.5
         self._attr_mode = NumberMode.BOX
@@ -65,8 +68,6 @@ class ComfortTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
         self._attr_name = "Comfort Temperature"
-        self._attr_native_min_value = EQ3BT_MIN_TEMP
-        self._attr_native_max_value = EQ3BT_MAX_TEMP
 
     @property
     def native_value(self):
@@ -82,8 +83,6 @@ class EcoTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
         self._attr_name = "Eco Temperature"
-        self._attr_native_min_value = EQ3BT_MIN_TEMP
-        self._attr_native_max_value = EQ3BT_MAX_TEMP
 
     @property
     def native_value(self):
@@ -114,8 +113,6 @@ class WindowOpenTemperature(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
         self._attr_name = "Window Open Temperature"
-        self._attr_native_min_value = EQ3BT_MIN_OFFSET
-        self._attr_native_max_value = EQ3BT_MAX_OFFSET
 
     @property
     def native_value(self):
@@ -128,15 +125,28 @@ class WindowOpenTemperature(Base):
         )
 
 
-class WindowOpenTimeout(Base):
+class WindowOpenTimeout(NumberEntity):
     def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._thermostat = _thermostat
+        self._attr_has_entity_name = True
+        self._attr_mode = NumberMode.BOX
         self._attr_name = "Window Open Timeout"
         self._attr_native_min_value = 0
         self._attr_native_max_value = 60
-        self._attr_device_class = None
         self._attr_native_step = 5
         self._attr_native_unit_of_measurement = "minutes"
+
+    @property
+    def unique_id(self) -> str:
+        assert self.name
+        return format_mac(self._thermostat.mac) + "_" + self.name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._thermostat.mac)},
+        )
 
     @property
     def native_value(self):
@@ -152,23 +162,83 @@ class WindowOpenTimeout(Base):
         )
 
 
-class AwayForDays(Base):
+class AwayForDays(RestoreNumber):
     def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "AwayForDays"
+        super().__init__()
+        self._thermostat = _thermostat
+        self._attr_has_entity_name = True
+        self._attr_mode = NumberMode.BOX
+        self._attr_name = "Away Days"
         self._attr_native_min_value = 0
         self._attr_native_max_value = 365
-        self._attr_device_class = None
         self._attr_native_step = 1
         self._attr_native_unit_of_measurement = "days"
 
     @property
-    def native_value(self):
-        return 0
-        if self._thermostat.away is None:
-            return None
-            # TODO
-        # return self._thermostat.away_end window_open_time.total_seconds() / 60
+    def unique_id(self) -> str:
+        assert self.name
+        return format_mac(self._thermostat.mac) + "_" + self.name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._thermostat.mac)},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore last state."""
+        await super().async_added_to_hass()
+        data = await self.async_get_last_number_data()
+        if data and data.native_value:
+            self._thermostat.default_away_days = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
-        return None
+        self._thermostat.default_away_days = value
+
+    def native_value(self) -> float | None:
+        return self._thermostat.default_away_days
+
+
+class AwayTemperature(RestoreNumber):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__()
+        self._thermostat = _thermostat
+        self._attr_has_entity_name = True
+        self._attr_native_min_value = EQ3BT_MIN_TEMP
+        self._attr_native_max_value = EQ3BT_MAX_TEMP
+
+        self._attr_native_step = 0.5
+        self._attr_mode = NumberMode.BOX
+        self._attr_name = "Away Temperature"
+
+    @property
+    def unit_of_measurement(self) -> str:
+        return "°C"
+
+    @property
+    def name(self) -> str:
+        return "Away Temperature"
+
+    @property
+    def unique_id(self) -> str:
+        assert self.name
+        return format_mac(self._thermostat.mac) + "_" + self.name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._thermostat.mac)},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore last state."""
+        await super().async_added_to_hass()
+        data = await self.async_get_last_number_data()
+        if data and data.native_value:
+            self._thermostat.default_away_temp = data.native_value
+
+    async def async_set_native_value(self, value: float) -> None:
+        self._thermostat.default_away_temp = value
+
+    def native_value(self) -> float | None:
+        return self._thermostat.default_away_temp

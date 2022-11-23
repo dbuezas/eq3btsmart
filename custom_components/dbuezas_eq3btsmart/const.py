@@ -33,4 +33,3 @@ class Preset(str, Enum):
     AWAY = PRESET_AWAY
     LOCKED = "Locked"
     OPEN = "Open"
-    REFRESH = "Force Refresh"
