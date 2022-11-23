@@ -73,7 +73,7 @@ class AwayEndSensor(Base):
 
     @property
     def native_value(self):
-        return self._thermostat.away_end if self._thermostat.mode == Mode.Away else None
+        return self._thermostat.away_end if self._thermostat.away else None
 
 
 class RssiSensor(Base):

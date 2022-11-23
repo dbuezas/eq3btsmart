@@ -7,11 +7,8 @@ import asyncio
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
 from .const import (
     EQ_TO_HA_HVAC,
-    EQ_TO_HA_PRESET,
     HA_TO_EQ_HVAC,
-    HA_TO_EQ_PRESET,
-    PRESET_CLOSED,
-    PRESET_OPEN,
+    Preset,
     DOMAIN,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -26,10 +23,6 @@ from homeassistant.const import (
     TEMP_CELSIUS,
 )
 from homeassistant.components.climate.const import (
-    HVAC_MODE_OFF,
-    PRESET_COMFORT,
-    PRESET_ECO,
-    PRESET_NONE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
 )
@@ -38,10 +31,11 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate import ClimateEntity
 import voluptuous as vol
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
+    EQ3BT_ON_TEMP,
     Mode,
     Thermostat,
 )
@@ -171,8 +165,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return the current operation mode."""
-        if self._thermostat.mode == Mode.Unknown:
-            return HVAC_MODE_OFF
+        if self._thermostat.mode == None:
+            return None
+
         return EQ_TO_HA_HVAC[self._thermostat.mode]
 
     @property
@@ -184,6 +179,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """Set operation mode."""
         if hvac_mode == HVACMode.OFF:
             self._current_temperature = EQ3BT_OFF_TEMP
+            self._is_setting_temperature = True
+        elif hvac_mode == "Open":
+            self._current_temperature = EQ3BT_ON_TEMP
             self._is_setting_temperature = True
         else:
             self._current_temperature = self.target_temperature
@@ -210,14 +208,58 @@ class EQ3BTSmartThermostat(ClimateEntity):
         """
         if not self._is_available:
             return "Unreacheable"
-        return EQ_TO_HA_PRESET.get(self._thermostat.mode)
+        if self._thermostat.boost:
+            return Preset.BOOST
+        if self._thermostat.away:
+            return Preset.AWAY
+        if self._thermostat.locked:
+            return Preset.LOCKED
+        if self._thermostat.target_temperature == self._thermostat.eco_temperature:
+            return Preset.ECO
+        if self._thermostat.target_temperature == self._thermostat.comfort_temperature:
+            return Preset.COMFORT
+        if self._thermostat.mode == Mode.On:
+            return Preset.OPEN
+        return Preset.NONE
+
+    async def async_set_preset_mode(self, preset_mode):
+        """Set new preset mode."""
+        match preset_mode:
+            case Preset.BOOST:
+                await self._thermostat.async_set_boost(True)
+            case Preset.AWAY:
+                await self._thermostat.async_set_away(
+                    away_end=datetime.now() + timedelta(days=30), temperature=12
+                )
+            case Preset.LOCKED:
+                await self._thermostat.async_set_locked(True)
+            case Preset.ECO:
+                await self._thermostat.async_activate_eco()
+            case Preset.COMFORT:
+                await self._thermostat.async_activate_comfort()
+            case Preset.OPEN:
+                await self._thermostat.async_set_mode(Mode.On)
+            case Preset.REFRESH:
+                await self._thermostat.async_update()
+            case Preset.NONE:
+                if self._thermostat.locked:
+                    await self._thermostat.async_set_locked(False)
+                if self._thermostat.boost:
+                    await self._thermostat.async_set_boost(False)
+                if self._thermostat.away:
+                    await self.async_set_hvac_mode(HVACMode.AUTO)
+
+        # by now, the target temperature should have been (maybe set) and fetched
+        self._current_temperature = self.target_temperature
+        self._is_setting_temperature = False
+        self._skip_next_update = True
 
     @property
     def preset_modes(self):
         """Return a list of available preset modes.
         Requires SUPPORT_PRESET_MODE.
         """
-        return list(HA_TO_EQ_PRESET)
+        return list(Preset)
 
     @property
     def unique_id(self) -> str:
@@ -234,29 +276,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
             sw_version=self._thermostat.firmware_version,
             connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
         )
-
-    async def async_set_preset_mode(self, preset_mode):
-        """Set new preset mode."""
-        if preset_mode == PRESET_OPEN:
-            self._current_temperature = EQ3BT_MAX_TEMP
-            self._is_setting_temperature = True
-            self.async_schedule_update_ha_state(force_refresh=False)
-        if preset_mode == PRESET_CLOSED:
-            self._current_temperature = EQ3BT_OFF_TEMP
-            self._is_setting_temperature = True
-            self.async_schedule_update_ha_state(force_refresh=False)
-        if preset_mode == PRESET_NONE:
-            return await self.async_set_hvac_mode(HVACMode.HEAT)
-        if preset_mode == PRESET_ECO:
-            return await self._thermostat.async_activate_eco()
-        if preset_mode == PRESET_COMFORT:
-            return await self._thermostat.async_activate_comfort()
-        await self._thermostat.async_set_mode(HA_TO_EQ_PRESET[preset_mode])
-
-        # by now, the target temperature should have been (maybe set) and fetched
-        self._current_temperature = self.target_temperature
-        self._is_setting_temperature = False
-        self._skip_next_update = True
 
     async def async_update(self):
         """Update the data from the thermostat."""

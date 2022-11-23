@@ -27,6 +27,8 @@ async def async_setup_entry(
         WindowOpenSensor(eq3),
         BusySensor(eq3),
         ConnectedSensor(eq3),
+        DSTSensor(eq3),
+        UnknownSensor(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -98,3 +100,27 @@ class WindowOpenSensor(Base):
     @property
     def state(self):
         return self._thermostat.window_open
+
+
+class DSTSensor(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = "DST"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def is_on(self):
+        return self._thermostat.dst
+
+
+class UnknownSensor(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = "Unknown"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def is_on(self):
+        return self._thermostat.unknown

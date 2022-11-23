@@ -16,7 +16,7 @@ from enum import IntEnum
 from construct import Byte
 
 from homeassistant.core import HomeAssistant
-from .structures import AwayDataAdapter, DeviceId, Schedule, Status
+from .structures import AwayDataAdapter, DeviceId, ModeFlags, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,13 +49,10 @@ EQ3BT_MAX_OFFSET = 3.5
 class Mode(IntEnum):
     """Thermostat modes."""
 
-    Unknown = -1
-    Closed = 0
-    Open = 1
+    Off = 0
+    On = 1
     Auto = 2
     Manual = 3
-    Away = 4
-    Boost = 5
 
 
 class TemperatureException(Exception):
@@ -76,9 +73,8 @@ class Thermostat:
     ):
         """Initialize the thermostat."""
 
-        self._target_temperature = Mode.Unknown
+        self._target_temperature = -1
         self.name = name
-        self._mode = Mode.Unknown
         self._valve_state = None
         self._raw_mode = None
 
@@ -149,21 +145,6 @@ class Thermostat:
             self._raw_mode = status.mode
             self._valve_state = status.valve
             self._target_temperature = status.target_temp
-
-            if status.mode.BOOST:
-                self._mode = Mode.Boost
-            elif status.mode.AWAY:
-                self._mode = Mode.Away
-                self._away_end = status.away
-            elif status.mode.MANUAL:
-                if status.target_temp == EQ3BT_OFF_TEMP:
-                    self._mode = Mode.Closed
-                elif status.target_temp == EQ3BT_ON_TEMP:
-                    self._mode = Mode.Open
-                else:
-                    self._mode = Mode.Manual
-            else:
-                self._mode = Mode.Auto
 
             presets = status.presets
             if presets:
@@ -287,37 +268,40 @@ class Thermostat:
     @property
     def mode(self):
         """Return the current operation mode"""
-        return self._mode
+        if self._raw_mode == None:
+            return None
+        if self.target_temperature == EQ3BT_OFF_TEMP:
+            return Mode.Off
+        if self.target_temperature == EQ3BT_ON_TEMP:
+            return Mode.On
+        if self._raw_mode.MANUAL:
+            return Mode.Manual
+        return Mode.Auto
 
     async def async_set_mode(self, mode):
         """Set the operation mode."""
         _LOGGER.debug("[%s] Setting new mode: %s", self.name, mode)
 
-        if self.mode == Mode.Boost and mode != Mode.Boost:
-            await self.async_set_boost(False)
-
-        if mode == Mode.Boost:
-            await self.async_set_boost(True)
-            return
-        elif mode == Mode.Away:
-            end = datetime.now() + self._away_duration
-            return await self.async_set_away(end, self._away_temp)
-        elif mode == Mode.Closed:
-            return await self._async_set_mode(0x40 | int(EQ3BT_OFF_TEMP * 2))
-        elif mode == Mode.Open:
-            return await self._async_set_mode(0x40 | int(EQ3BT_ON_TEMP * 2))
-
+        if mode == Mode.Off:
+            return await self.async_set_target_temperature(EQ3BT_OFF_TEMP)
+        if mode == Mode.On:
+            return await self.async_set_target_temperature(EQ3BT_ON_TEMP)
+        if mode == Mode.Auto:
+            return await self._async_set_mode(0)
         if mode == Mode.Manual:
             temperature = max(
                 min(self._target_temperature, self.max_temp), self.min_temp
             )
             return await self._async_set_mode(0x40 | int(temperature * 2))
-        else:
-            return await self._async_set_mode(0)
+
+    @property
+    def away(self):
+        """Returns True if the thermostat is in boost mode."""
+        return self._raw_mode and self._raw_mode.AWAY
 
     @property
     def away_end(self):
-        return self._away_end
+        return self.away and self._away_end
 
     async def async_set_away(self, away_end=None, temperature=EQ3BT_AWAY_TEMP):
         """Sets away mode with target temperature.
@@ -376,7 +360,7 @@ class Thermostat:
     @property
     def boost(self):
         """Returns True if the thermostat is in boost mode."""
-        return self.mode == Mode.Boost
+        return self._raw_mode and self._raw_mode.BOOST
 
     async def async_set_boost(self, boost):
         """Sets boost mode."""
@@ -425,6 +409,16 @@ class Thermostat:
     def window_open_time(self) -> timedelta | None:
         """Timeout to reset the thermostat after an open window is detected."""
         return self._window_open_time
+
+    @property
+    def unknown(self):
+        """Returns True if the thermostat is in unknown state."""
+        return self._raw_mode and self._raw_mode.UNKNOWN
+
+    @property
+    def dst(self):
+        """Returns True if the thermostat is in Daylight Saving Time."""
+        return self._raw_mode and self._raw_mode.DST
 
     @property
     def locked(self):

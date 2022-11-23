@@ -33,6 +33,7 @@ async def async_setup_entry(
         OffsetTemperature(eq3),
         WindowOpenTemperature(eq3),
         WindowOpenTimeout(eq3),
+        AwayForDays(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -149,3 +150,25 @@ class WindowOpenTimeout(Base):
             temperature=self._thermostat.window_open_temperature,
             duration=timedelta(minutes=value),
         )
+
+
+class AwayForDays(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        self._attr_name = "AwayForDays"
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 365
+        self._attr_device_class = None
+        self._attr_native_step = 1
+        self._attr_native_unit_of_measurement = "days"
+
+    @property
+    def native_value(self):
+        return 0
+        if self._thermostat.away is None:
+            return None
+            # TODO
+        # return self._thermostat.away_end window_open_time.total_seconds() / 60
+
+    async def async_set_native_value(self, value: float) -> None:
+        return None
