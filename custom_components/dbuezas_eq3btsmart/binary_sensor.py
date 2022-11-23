@@ -38,7 +38,7 @@ class Base(BinarySensorEntity):
 
     @property
     def unique_id(self) -> str:
-        """Return the MAC address of the thermostat."""
+        assert self.name
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property

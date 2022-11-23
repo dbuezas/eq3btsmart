@@ -31,6 +31,7 @@ class Base(SwitchEntity):
 
     @property
     def unique_id(self) -> str:
+        assert self.name
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
