@@ -21,6 +21,7 @@ async def async_setup_entry(
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
 
     new_devices = [LockedSwitch(eq3), AwaySwitch(eq3), ConnectionSwitch(eq3)]
+
     async_add_entities(new_devices)
 
 
@@ -31,6 +32,7 @@ class Base(SwitchEntity):
 
     @property
     def unique_id(self) -> str:
+        assert self.name
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -66,21 +68,14 @@ class AwaySwitch(Base):
         self._attr_icon = "mdi:lock"
 
     async def async_turn_on(self):
-        TEMP = 12.0
-        self._away_temp = TEMP
-        self._away_duration = timedelta(days=30)
-        await self._thermostat.async_set_away(
-            away_end=datetime.now() + self._away_duration, temperature=TEMP
-        )
+        await self._thermostat.async_set_away(True)
 
     async def async_turn_off(self):
-        await self._thermostat.async_set_away()
+        await self._thermostat.async_set_away(False)
 
     @property
     def is_on(self):
-        if self._thermostat.mode == Mode.Unknown:
-            return None
-        return self._thermostat.mode == Mode.Away
+        return self._thermostat.away
 
 
 class ConnectionSwitch(Base):

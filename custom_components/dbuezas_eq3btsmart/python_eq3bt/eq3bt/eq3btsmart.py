@@ -12,12 +12,11 @@ import logging
 import struct
 from datetime import datetime, timedelta
 from enum import IntEnum
-from typing import Callable
 
 from construct import Byte
 
 from homeassistant.core import HomeAssistant
-from .structures import AwayDataAdapter, DeviceId, Schedule, Status
+from .structures import AwayDataAdapter, DeviceId, ModeFlags, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,21 +42,18 @@ EQ3BT_MIN_TEMP = 5.0
 EQ3BT_MAX_TEMP = 29.5
 EQ3BT_OFF_TEMP = 4.5
 EQ3BT_ON_TEMP = 30.0
+EQ3BT_MIN_OFFSET = -3.5
+EQ3BT_MAX_OFFSET = 3.5
 
 
 class Mode(IntEnum):
     """Thermostat modes."""
 
-    Unknown = -1
-    Closed = 0
-    Open = 1
+    Unknown = 0
+    Off = 0
+    On = 1
     Auto = 2
     Manual = 3
-    Away = 4
-    Boost = 5
-
-
-MODE_NOT_TEMP = [Mode.Unknown, Mode.Closed, Mode.Open]
 
 
 class TemperatureException(Exception):
@@ -78,26 +74,14 @@ class Thermostat:
     ):
         """Initialize the thermostat."""
 
-        self._target_temperature = Mode.Unknown
         self.name = name
-        self._mode = Mode.Unknown
-        self._valve_state = None
-        self._raw_mode = None
-
+        self._status = None
+        self._presets = None
+        self._device_data = None
         self._schedule = {}
+        self.default_away_days: float = 30
+        self.default_away_temp: float = 12
 
-        self._window_open_temperature = None
-        self._window_open_time = None
-        self._comfort_temperature = None
-        self._eco_temperature = None
-        self._temperature_offset = None
-
-        self._away_temp = EQ3BT_AWAY_TEMP
-        self._away_duration = timedelta(days=30)
-        self._away_end = None
-
-        self._firmware_version = None
-        self._device_serial = None
         from .bleakconnection import BleakConnection
 
         self._on_update_callbacks = []
@@ -109,23 +93,14 @@ class Thermostat:
     def shutdown(self):
         self._conn.shutdown()
 
-    def __str__(self):
-        away_end = "no"
-        if self.away_end:
-            away_end = "end: %s" % self._away_end
-
-        return "[{}] Target {} (mode: {}, away: {})".format(
-            self.name, self.target_temperature, self.mode_readable, away_end
-        )
-
     def _verify_temperature(self, temp):
         """Verifies that the temperature is valid.
         :raises TemperatureException: On invalid temperature.
         """
-        if temp < self.min_temp or temp > self.max_temp:
+        if temp < EQ3BT_MIN_TEMP or temp > EQ3BT_MAX_TEMP:
             raise TemperatureException(
                 "Temperature {} out of range [{}, {}]".format(
-                    temp, self.min_temp, self.max_temp
+                    temp, EQ3BT_MIN_TEMP, EQ3BT_MAX_TEMP
                 )
             )
 
@@ -144,74 +119,17 @@ class Thermostat:
 
         if data[0] == PROP_INFO_RETURN and data[1] == 1:
             _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
-            status = Status.parse(data)
-            _LOGGER.debug("[%s] Parsed status: %s", self.name, status)
-            if status == None:
-                raise Exception("Received empty status data")
-            self._raw_mode = status.mode
-            self._valve_state = status.valve
-            self._target_temperature = status.target_temp
-
-            if status.mode.BOOST:
-                self._mode = Mode.Boost
-            elif status.mode.AWAY:
-                self._mode = Mode.Away
-                self._away_end = status.away
-            elif status.mode.MANUAL:
-                if status.target_temp == EQ3BT_OFF_TEMP:
-                    self._mode = Mode.Closed
-                elif status.target_temp == EQ3BT_ON_TEMP:
-                    self._mode = Mode.Open
-                else:
-                    self._mode = Mode.Manual
-            else:
-                self._mode = Mode.Auto
-
-            presets = status.presets
-            if presets:
-                self._window_open_temperature = presets.window_open_temp
-                self._window_open_time = presets.window_open_time
-                self._comfort_temperature = presets.comfort_temp
-                self._eco_temperature = presets.eco_temp
-                self._temperature_offset = presets.offset
-            else:
-                self._window_open_temperature = None
-                self._window_open_time = None
-                self._comfort_temperature = None
-                self._eco_temperature = None
-                self._temperature_offset = None
-
-            _LOGGER.debug("[%s] Valve state:      %s", self.name, self._valve_state)
-            _LOGGER.debug("[%s] Mode:             %s", self.name, self.mode_readable)
-            _LOGGER.debug(
-                "[%s] Target temp:      %s", self.name, self._target_temperature
-            )
-            _LOGGER.debug("[%s] Away end:         %s", self.name, self._away_end)
-            _LOGGER.debug(
-                "[%s] Window open temp: %s", self.name, self._window_open_temperature
-            )
-            _LOGGER.debug(
-                "[%s] Window open time: %s", self.name, self._window_open_time
-            )
-            _LOGGER.debug(
-                "[%s] Comfort temp:     %s", self.name, self._comfort_temperature
-            )
-            _LOGGER.debug("[%s] Eco temp:         %s", self.name, self._eco_temperature)
-            _LOGGER.debug(
-                "[%s] Temp offset:      %s", self.name, self._temperature_offset
-            )
+            self._status = Status.parse(data)
+            self._presets = self._status.presets
+            _LOGGER.debug("[%s] Parsed status: %s", self.name, self._status)
 
         elif data[0] == PROP_SCHEDULE_RETURN:
             parsed = self.parse_schedule(data)
             self._schedule[parsed.day] = parsed
 
         elif data[0] == PROP_ID_RETURN:
-            parsed = DeviceId.parse(data)
-            _LOGGER.debug("[%s] Parsed device data: %s", self.name, parsed)
-            if parsed is None:
-                raise Exception("Parsed empty DeviceID data")
-            self._firmware_version = parsed.version
-            self._device_serial = parsed.serial
+            self._device_data = DeviceId.parse(data)
+            _LOGGER.debug("[%s] Parsed device data: %s", self.name, self._device_data)
 
         else:
             _LOGGER.debug(
@@ -272,7 +190,7 @@ class Thermostat:
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._target_temperature
+        return self._status.target_temp if self._status else -1
 
     async def async_set_target_temperature(self, temperature):
         """Set new target temperature."""
@@ -289,45 +207,49 @@ class Thermostat:
     @property
     def mode(self):
         """Return the current operation mode"""
-        return self._mode
+        if self._status == None:
+            return Mode.Unknown
+        if self.target_temperature == EQ3BT_OFF_TEMP:
+            return Mode.Off
+        if self.target_temperature == EQ3BT_ON_TEMP:
+            return Mode.On
+        if self._status.mode.MANUAL:
+            return Mode.Manual
+        return Mode.Auto
 
     async def async_set_mode(self, mode):
         """Set the operation mode."""
         _LOGGER.debug("[%s] Setting new mode: %s", self.name, mode)
 
-        if self.mode == Mode.Boost and mode != Mode.Boost:
-            await self.async_set_boost(False)
-
-        if mode == Mode.Boost:
-            await self.async_set_boost(True)
-            return
-        elif mode == Mode.Away:
-            end = datetime.now() + self._away_duration
-            return await self.async_set_away(end, self._away_temp)
-        elif mode == Mode.Closed:
-            return await self._async_set_mode(0x40 | int(EQ3BT_OFF_TEMP * 2))
-        elif mode == Mode.Open:
-            return await self._async_set_mode(0x40 | int(EQ3BT_ON_TEMP * 2))
-
+        if mode == Mode.Off:
+            return await self.async_set_target_temperature(EQ3BT_OFF_TEMP)
+        if mode == Mode.On:
+            return await self.async_set_target_temperature(EQ3BT_ON_TEMP)
+        if mode == Mode.Auto:
+            return await self._async_set_mode(0)
         if mode == Mode.Manual:
             temperature = max(
-                min(self._target_temperature, self.max_temp), self.min_temp
+                min(self.target_temperature, EQ3BT_MAX_TEMP), EQ3BT_MIN_TEMP
             )
             return await self._async_set_mode(0x40 | int(temperature * 2))
-        else:
-            return await self._async_set_mode(0)
+
+    @property
+    def away(self):
+        """Returns True if the thermostat is in boost mode."""
+        return self._status and self._status.mode.AWAY
 
     @property
     def away_end(self):
-        return self._away_end
+        return self._status and self._status.away
 
-    async def async_set_away(self, away_end=None, temperature=EQ3BT_AWAY_TEMP):
-        """Sets away mode with target temperature.
-        When called without parameters disables away mode."""
-        if not away_end:
+    async def async_set_away(self, away: bool):
+        """Sets away mode with default temperature."""
+        if not away:
             _LOGGER.debug("[%s] Disabling away, going to auto mode.", self.name)
             return await self._async_set_mode(0x00)
 
+        away_end = datetime.now() + timedelta(days=self.default_away_days)
+        temperature = self.default_away_temp
         _LOGGER.debug(
             "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
         )
@@ -343,42 +265,9 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def mode_readable(self):
-        """Return a readable representation of the mode.."""
-        ret = ""
-        mode = self._raw_mode
-        if mode == None:
-            raise Exception("_raw_mode is empty")
-        if mode.MANUAL:
-            ret = "manual"
-            if self.target_temperature < self.min_temp:
-                ret += " off"
-            elif self.target_temperature >= self.max_temp:
-                ret += " on"
-            else:
-                ret += " (%sC)" % self.target_temperature
-        else:
-            ret = "auto"
-
-        if mode.AWAY:
-            ret += " holiday"
-        if mode.BOOST:
-            ret += " boost"
-        if mode.DST:
-            ret += " dst"
-        if mode.WINDOW:
-            ret += " window"
-        if mode.LOCKED:
-            ret += " locked"
-        if mode.LOW_BATTERY:
-            ret += " low battery"
-
-        return ret
-
-    @property
     def boost(self):
         """Returns True if the thermostat is in boost mode."""
-        return self.mode == Mode.Boost
+        return self._status and self._status.mode.BOOST
 
     async def async_set_boost(self, boost):
         """Sets boost mode."""
@@ -389,13 +278,13 @@ class Thermostat:
     @property
     def valve_state(self):
         """Returns the valve state. Probably reported as percent open."""
-        return self._valve_state
+        return self._status and self._status.valve
 
     @property
     def window_open(self):
         """Returns True if the thermostat reports a open window
         (detected by sudden drop of temperature)"""
-        return self._raw_mode and self._raw_mode.WINDOW
+        return self._status and self._status.mode.WINDOW
 
     async def async_window_open_config(self, temperature, duration):
         """Configures the window open behavior. The duration is specified in
@@ -421,17 +310,27 @@ class Thermostat:
     @property
     def window_open_temperature(self):
         """The temperature to set when an open window is detected."""
-        return self._window_open_temperature
+        return self._presets and self._presets.window_open_temp
 
     @property
-    def window_open_time(self):
+    def window_open_time(self) -> timedelta | None:
         """Timeout to reset the thermostat after an open window is detected."""
-        return self._window_open_time
+        return self._presets and self._presets.window_open_time  # type: ignore
+
+    @property
+    def unknown(self):
+        """Returns True if the thermostat is in unknown state."""
+        return self._status and self._status.mode.UNKNOWN
+
+    @property
+    def dst(self):
+        """Returns True if the thermostat is in Daylight Saving Time."""
+        return self._status and self._status.mode.DST
 
     @property
     def locked(self):
         """Returns True if the thermostat is locked."""
-        return self._raw_mode and self._raw_mode.LOCKED
+        return self._status and self._status.mode.LOCKED
 
     async def async_set_locked(self, lock):
         """Locks or unlocks the thermostat."""
@@ -442,7 +341,7 @@ class Thermostat:
     @property
     def low_battery(self):
         """Returns True if the thermostat reports a low battery."""
-        return self._raw_mode and self._raw_mode.LOW_BATTERY
+        return self._status and self._status.mode.LOW_BATTERY
 
     async def async_temperature_presets(self, comfort, eco):
         """Set the thermostats preset temperatures comfort (sun) and
@@ -463,24 +362,24 @@ class Thermostat:
     @property
     def comfort_temperature(self):
         """Returns the comfort temperature preset of the thermostat."""
-        return self._comfort_temperature
+        return self._presets and self._presets.comfort_temp
 
     @property
     def eco_temperature(self):
         """Returns the eco temperature preset of the thermostat."""
-        return self._eco_temperature
+        return self._presets and self._presets.eco_temp
 
     @property
     def temperature_offset(self):
         """Returns the thermostat's temperature offset."""
-        return self._temperature_offset
+        return self._presets and self._presets.offset
 
     async def async_set_temperature_offset(self, offset):
         """Sets the thermostat's temperature offset."""
         _LOGGER.debug("[%s] Setting offset: %s", self.name, offset)
         # [-3,5 .. 0  .. 3,5 ]
         # [00   .. 07 .. 0e ]
-        if offset < -3.5 or offset > 3.5:
+        if offset < EQ3BT_MIN_OFFSET or offset > EQ3BT_MAX_OFFSET:
             raise TemperatureException("Invalid value: %s" % offset)
 
         current = -3.5
@@ -503,24 +402,14 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def min_temp(self):
-        """Return the minimum temperature."""
-        return EQ3BT_MIN_TEMP
-
-    @property
-    def max_temp(self):
-        """Return the maximum temperature."""
-        return EQ3BT_MAX_TEMP
-
-    @property
-    def firmware_version(self):
+    def firmware_version(self) -> str | None:
         """Return the firmware version."""
-        return self._firmware_version
+        return self._device_data and self._device_data.version  # type: ignore
 
     @property
-    def device_serial(self):
+    def device_serial(self) -> str | None:
         """Return the device serial number."""
-        return self._device_serial
+        return self._device_data and self._device_data.serial  # type: ignore
 
     @property
     def mac(self):
