@@ -22,6 +22,7 @@ from homeassistant.const import (
     TEMP_CELSIUS,
 )
 from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
 )
@@ -144,6 +145,21 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
+
+        # We can also set the HVAC mode when setting the temperature.
+        # This needs to be done before changing the temperature because
+        # changing the mode might change the temperature.
+        if ATTR_HVAC_MODE in kwargs:
+            mode = kwargs.get(ATTR_HVAC_MODE)
+            # Setting the mode to off while change the tempreature doesn't make sense.
+            if mode != HVACMode.OFF:
+                await self.async_set_hvac_mode(mode)
+            else:
+                _LOGGER.warning(
+                    "[%s] Can't change temperature while changing HVAC mode to off. Ignoring mode change.",
+                    self._thermostat.name
+                    )
+
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
