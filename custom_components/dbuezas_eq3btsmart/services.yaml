@@ -2,122 +2,121 @@ set_schedule:
   name: Set EQ3 Schedule
   description: Sets the internal schedule
   target:
+    description: Select the devices or areas to configure.
     entity:
+      integration: none
+    device:
       integration: dbuezas_eq3btsmart
+      model: CC-RT-BLE-EQ
+      description: Select the thermostats to update
   fields:
-    day:
-      name: Day
+    days:
+      name: Days to set
+      description: Only these days will be modified.
       required: true
-      example: sat
       selector:
         select:
-          options:
-            - sat
-            - sun
-            - mon
-            - tue
-            - wed
-            - thu
-            - fri
-            - week-days
-            - weekend-days
-    base_temp:
-      name: Base Temp
+          mode: list
+          multiple: true
+          options: 
+            - label: Saturday
+              value: sat
+            - label: Sunday
+              value: sun
+            - label: Monday
+              value: mon
+            - label: Tuesday
+              value: tue
+            - label: Wednesday
+              value: wed
+            - label: Thursday
+              value: thu
+            - label: Friday
+              value: fri
+    from_midnight:
+      name: From midnight on
+      description: |-
+        The last enabled slot must be the temperature to hold until the next day
       required: true
-      default: 18
-      selector:
+      selector: {}
+    target_temp_0:
+      name: "Temperature"
+      required: true
+      example: 17
+      default: 17
+      selector: &temp_selector
         number:
-          min: 4.5
+          min: 5
           max: 29.5
           step: 0.5
           unit_of_measurement: °C
-    next_change_at_1:
+    next_change_at_0:
       name: Until
       required: true
-      default: "08:00:00"
-      selector:
+      example: "06:00:00"
+      default: "06:00:00"
+      selector: &time_selector
         time:
 
-    target_temp_1:
-      name: Target Temp
-      default: 18
-      selector:
-        number:
-          min: 4.5
-          max: 29.5
-          step: 0.5
-          unit_of_measurement: °C
-    next_change_at_2:
+    target_temp_1: 
+      name: "Temperature"
+      required: true
+      example: 21
+      default: 21
+      selector: *temp_selector
+    next_change_at_1: 
       name: Until
-      default: "08:00:00"
-      selector:
-        time:
-    target_temp_2:
-      name: Target Temp
-      default: 18
-      selector:
-        number:
-          min: 4.5
-          max: 29.5
-          step: 0.5
-          unit_of_measurement: °C
+      example: "09:00:00"
+      default: "09:00:00"
+      selector: *time_selector
 
-    next_change_at_3:
+    target_temp_2: 
+      name: "Temperature"
+      example: 17
+      default: 17
+      selector: *temp_selector
+    next_change_at_2: 
       name: Until
-      default: "08:00:00"
-      selector:
-        time:
-    target_temp_3:
-      name: Target Temp
-      default: 18
-      selector:
-        number:
-          min: 4.5
-          max: 29.5
-          step: 0.5
-          unit_of_measurement: °C
+      example: "17:00:00"
+      default: "17:00:00"
+      selector: *time_selector
 
-    next_change_at_4:
+    target_temp_3: 
+      name: "Temperature"
+      example: 21
+      default: 21
+      selector: *temp_selector
+    next_change_at_3: 
       name: Until
-      default: "08:00:00"
-      selector:
-        time:
+      example: "23:00:00"
+      default: "23:00:00"
+      selector: *time_selector
+
     target_temp_4:
-      name: Target Temp
-      default: 18
-      selector:
-        number:
-          min: 4.5
-          max: 29.5
-          step: 0.5
-          unit_of_measurement: °C
-
-    next_change_at_5:
+      name: "Temperature"
+      example: 17
+      default: 17
+      selector: *temp_selector
+    next_change_at_4: 
       name: Until
-      default: "08:00:00"
-      selector:
-        time:
+      default: "23:00:00"
+      selector: *time_selector
+    
     target_temp_5:
-      name: Target Temp
-      default: 18
-      selector:
-        number:
-          min: 4.5
-          max: 29.5
-          step: 0.5
-          unit_of_measurement: °C
-
-    next_change_at_6:
+      name: "Temperature"
+      default: 17
+      selector: *temp_selector
+    next_change_at_5: 
       name: Until
-      default: "08:00:00"
-      selector:
-        time:
+      default: "23:00:00"
+      selector: *time_selector
+
     target_temp_6:
-      name: Target Temp
-      default: 18
-      selector:
-        number:
-          min: 4.5
-          max: 29.5
-          step: 0.5
-          unit_of_measurement: °C
+      name: "Temperature"
+      default: 17
+      selector: *temp_selector
+    until_midnight:
+      name: Until midnight
+      description: The last enabled temperature will be held until the end of the day
+      required: true
+      selector: {}

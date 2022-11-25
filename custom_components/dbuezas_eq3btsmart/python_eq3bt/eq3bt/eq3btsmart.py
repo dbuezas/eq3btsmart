@@ -182,9 +182,19 @@ class Thermostat:
         """
         return self._schedule
 
-    async def async_set_schedule(self, data):
+    async def async_set_schedule(self, day, hours):
+        _LOGGER.debug(
+            "[%s] Setting schedule day=[%s], hours=[%s]", self.name, day, hours
+        )
+
         """Sets the schedule for the given day."""
-        value = Schedule.build(data)
+        value = Schedule.build(
+            {
+                "cmd": "write",
+                "day": day,
+                "hours": hours,
+            }
+        )
         await self._conn.async_make_request(value)
 
     @property

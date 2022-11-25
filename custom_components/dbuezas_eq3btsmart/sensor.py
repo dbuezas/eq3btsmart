@@ -4,7 +4,7 @@ import json
 import logging
 
 from homeassistant.helpers.device_registry import format_mac
-from .python_eq3bt.eq3bt.eq3btsmart import Mode, Thermostat
+from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
