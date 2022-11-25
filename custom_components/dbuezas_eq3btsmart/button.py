@@ -1,4 +1,4 @@
-from datetime import time
+import datetime
 
 from .python_eq3bt.eq3bt.structures import (
     HOUR_24_PLACEHOLDER,
@@ -21,38 +21,47 @@ from homeassistant.core import HomeAssistant
 _LOGGER = logging.getLogger(__name__)
 
 
-def no_time_gaps(value):
-    """Validate and transform a time."""
+def times_and_temps_schema(value):
+    """Validate times."""
+    times = [value.get(f"next_change_at_{i}") for i in range(6)]
+    times.append(None)
 
-    keys = [
-        "target_temp_0",
-        "next_change_at_0",
-        "target_temp_1",
-        "next_change_at_1",
-        "target_temp_2",
-        "next_change_at_2",
-        "target_temp_3",
-        "next_change_at_3",
-        "target_temp_4",
-        "next_change_at_4",
-        "target_temp_5",
-        "next_change_at_5",
-        "target_temp_6",
-    ]
+    # ensure times has no gaps
+    for i in range(len(times) - 1):
+        if times[i] == None and times[i + 1] != None:
+            raise vol.Invalid(f"Missing next_change_at_{i} before: {times[i+1]}")
 
-    last_none = None
-    last_defined = None
-    for key in keys:
-        if value.get(key) == None:
-            last_none = key
-        if value.get(key) != None:
-            last_defined = key
-            if last_none != None:
-                raise Exception(f"Missing {last_none} but {key} passed")
-    if last_defined == None:
-        raise Exception(f"Missing temperature")
-    if last_defined.startswith("next_change_at"):
-        raise Exception(f"Missing temperature after {last_defined}")
+    times = times[0 : times.index(None)]
+    # ensure times is sorted
+    for i in range(len(times) - 1):
+        if not times[i] < times[i + 1]:
+            raise vol.Invalid(f"Times not in order: {times[i]} ≥ {times[i+1]}")
+
+    # ensure non-empty
+    if len(times) == 0:
+        raise vol.Invalid(f"Missing next_change_at_0")
+
+    temps = [value.get(f"target_temp_{i}") for i in range(7)]
+    temps.append(None)
+
+    # ensure temps has no gaps
+    for i in range(len(temps) - 1):
+        if temps[i] == None and temps[i + 1] != None:
+            raise vol.Invalid(f"Missing target_temp_{i}")
+
+    temps = temps[0 : temps.index(None)]
+
+    # ensure non-empty
+    if len(temps) == 0:
+        raise vol.Invalid(f"Missing target_temp_0")
+
+    # ensure final temperature
+    if len(temps) > len(times) + 1:
+        raise vol.Invalid(f"Missing next_change_at_{len(times)} after {times[-1]}")
+    if len(temps) < len(times) + 1:
+        raise vol.Invalid(
+            f"Missing target_temp_{len(temps)} after {times[len(temps)-1]}"
+        )
     return value
 
 
@@ -78,7 +87,7 @@ SCHEDULE_SCHEMA = {
 
 SET_SCHEDULE_SCHEMA = vol.All(
     cv.make_entity_service_schema(SCHEDULE_SCHEMA),
-    no_time_gaps,
+    times_and_temps_schema,
 )
 
 
@@ -92,7 +101,7 @@ async def async_setup_entry(
 
     new_devices = [
         FetchScheduleButton(eq3),
-        ForceQueryButton(eq3),
+        FetchButton(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -100,7 +109,7 @@ async def async_setup_entry(
 
     platform.async_register_entity_service(
         "set_schedule",
-        SET_SCHEDULE_SCHEMA,
+        SET_SCHEDULE_SCHEMA,  # type: ignore
         "set_schedule",
     )
 
@@ -124,10 +133,6 @@ class Base(ButtonEntity):
         )
 
 
-def time_str(t: time) -> str:
-    return "24:00:00" if t == HOUR_24_PLACEHOLDER else t.isoformat()
-
-
 class FetchScheduleButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
@@ -149,20 +154,20 @@ class FetchScheduleButton(Base):
     async def set_schedule(self, **kwargs) -> None:
         _LOGGER.debug("[%s] set_schedule (day %s)", self._thermostat.name, kwargs)
         for day in kwargs["days"]:
+
+            times = [
+                kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
+            ]
+            times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
+
+            temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
+
             hours = []
-            patched_end = False
             for i in range(0, 6):
-                next_change_at = kwargs.get(f"next_change_at_{i}")
-                if next_change_at is None:
-                    if patched_end:
-                        next_change_at = time(0, 0)
-                    else:
-                        patched_end = True
-                        next_change_at = HOUR_24_PLACEHOLDER
                 hours.append(
                     {
-                        "target_temp": kwargs.get(f"target_temp_{i}", 0),
-                        "next_change_at": next_change_at,
+                        "target_temp": temps[i],
+                        "next_change_at": times[i],
                     }
                 )
             await self._thermostat.async_set_schedule(day=day, hours=hours)
@@ -172,21 +177,21 @@ class FetchScheduleButton(Base):
         schedule = {}
         for day in self._thermostat.schedule:
             day_raw = self._thermostat.schedule[day]
-            day_nice = {}
+            day_nice = {"day": day}
             for i, entry in enumerate(day_raw.hours):
                 day_nice[f"target_temp_{i}"] = entry.target_temp
-                day_nice[f"next_change_at_{i}"] = time_str(entry.next_change_at)
                 if entry.next_change_at == HOUR_24_PLACEHOLDER:
                     break
+                day_nice[f"next_change_at_{i}"] = entry.next_change_at.isoformat()
             schedule[day] = day_nice
 
         return schedule
 
 
-class ForceQueryButton(Base):
+class FetchButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Force Query"
+        self._attr_name = "Fetch"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:

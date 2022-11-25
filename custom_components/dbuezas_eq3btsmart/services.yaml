@@ -33,14 +33,9 @@ set_schedule:
               value: thu
             - label: Friday
               value: fri
-    from_midnight:
-      name: From midnight on
-      description: |-
-        The last enabled slot must be the temperature to hold until the next day
-      required: true
-      selector: {}
     target_temp_0:
-      name: "Temperature"
+      name: "Starting Temperature"
+      description: "The last enabled temperature will be held until the end of the day"
       required: true
       example: 17
       default: 17
@@ -51,7 +46,7 @@ set_schedule:
           step: 0.5
           unit_of_measurement: °C
     next_change_at_0:
-      name: Until
+      name: Time
       required: true
       example: "06:00:00"
       default: "06:00:00"
@@ -65,7 +60,7 @@ set_schedule:
       default: 21
       selector: *temp_selector
     next_change_at_1: 
-      name: Until
+      name: Time
       example: "09:00:00"
       default: "09:00:00"
       selector: *time_selector
@@ -76,7 +71,7 @@ set_schedule:
       default: 17
       selector: *temp_selector
     next_change_at_2: 
-      name: Until
+      name: Time
       example: "17:00:00"
       default: "17:00:00"
       selector: *time_selector
@@ -87,7 +82,7 @@ set_schedule:
       default: 21
       selector: *temp_selector
     next_change_at_3: 
-      name: Until
+      name: Time
       example: "23:00:00"
       default: "23:00:00"
       selector: *time_selector
@@ -98,7 +93,7 @@ set_schedule:
       default: 17
       selector: *temp_selector
     next_change_at_4: 
-      name: Until
+      name: Time
       default: "23:00:00"
       selector: *time_selector
     
@@ -107,7 +102,7 @@ set_schedule:
       default: 17
       selector: *temp_selector
     next_change_at_5: 
-      name: Until
+      name: Time
       default: "23:00:00"
       selector: *time_selector
 
@@ -115,8 +110,3 @@ set_schedule:
       name: "Temperature"
       default: 17
       selector: *temp_selector
-    until_midnight:
-      name: Until midnight
-      description: The last enabled temperature will be held until the end of the day
-      required: true
-      selector: {}
