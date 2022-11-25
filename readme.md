@@ -29,9 +29,17 @@ A modernized temporary replacement for the native Home Assistant component.
 2. Restart _Home Assistant_
 
 ## Adding devices
-
 1. Go to `Settings` > `Integrations`
-2. Either wait for automatic discovery, or click `+ ADD INTEGRATION` and search for `dbuezas_eq3btsmart`
+2. Either wait for automatic discovery, 
+
+<img width="290" alt="image" src="https://user-images.githubusercontent.com/777196/204042747-633106fb-f63c-439a-9dea-802df341e45d.png">​
+
+<img width="290" alt="image" src="https://user-images.githubusercontent.com/777196/204042753-6d08d4b2-d220-4d9b-9fd9-35ca57b5acc9.png">​
+
+or click `+ ADD INTEGRATION` and search for `dbuezas_eq3btsmart`
+
+<img width="290" alt="image" src="https://user-images.githubusercontent.com/777196/204042799-548a382f-6220-4d9f-a8e8-748ecc0de105.png">
+
 3. Addition will succeed immediately, so give the entity some minutes to connect to the thermostat
 
 ### Pairing issues
