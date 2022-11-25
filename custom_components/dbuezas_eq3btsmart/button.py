@@ -37,10 +37,6 @@ def times_and_temps_schema(value):
         if not times[i] < times[i + 1]:
             raise vol.Invalid(f"Times not in order: {times[i]} ≥ {times[i+1]}")
 
-    # ensure non-empty
-    if len(times) == 0:
-        raise vol.Invalid(f"Missing next_change_at_0")
-
     temps = [value.get(f"target_temp_{i}") for i in range(7)]
     temps.append(None)
 
@@ -57,6 +53,8 @@ def times_and_temps_schema(value):
 
     # ensure final temperature
     if len(temps) > len(times) + 1:
+        if len(times) == 0:
+            raise vol.Invalid(f"Missing next_change_at_{len(times)}")
         raise vol.Invalid(f"Missing next_change_at_{len(times)} after {times[-1]}")
     if len(temps) < len(times) + 1:
         raise vol.Invalid(
@@ -70,9 +68,9 @@ EQ3_TEMPERATURE = vol.Range(min=EQ3BT_MIN_TEMP, max=EQ3BT_MAX_TEMP)
 
 SCHEDULE_SCHEMA = {
     vol.Required("days"): vol.All(cv.ensure_list, [vol.In(WEEK_DAYS)]),
-    vol.Required("target_temp_0"): EQ3_TEMPERATURE,
-    vol.Required("next_change_at_0"): cv.time,
-    vol.Required("target_temp_1"): EQ3_TEMPERATURE,
+    vol.Optional("target_temp_0"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_0"): cv.time,
+    vol.Optional("target_temp_1"): EQ3_TEMPERATURE,
     vol.Optional("next_change_at_1"): cv.time,
     vol.Optional("target_temp_2"): EQ3_TEMPERATURE,
     vol.Optional("next_change_at_2"): cv.time,

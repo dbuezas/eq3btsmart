@@ -35,7 +35,7 @@ set_schedule:
               value: fri
     target_temp_0:
       name: "Starting Temperature"
-      description: "The last enabled temperature will be held until the end of the day"
+      description: "This target temperature will be set at midnight, when the day starts."
       required: true
       example: 17
       default: 17
@@ -46,67 +46,69 @@ set_schedule:
           step: 0.5
           unit_of_measurement: °C
     next_change_at_0:
-      name: Time
-      required: true
+      name: Until
+      description: "At this time the temperature will be changed to the one below."
+      required: false
       example: "06:00:00"
       default: "06:00:00"
       selector: &time_selector
         time:
 
     target_temp_1: 
-      name: "Temperature"
-      required: true
+      name: "Then change to"
+      description: "The last set temperature will be held until the next day."
+      required: false
       example: 21
       default: 21
       selector: *temp_selector
     next_change_at_1: 
-      name: Time
+      name: Until
       example: "09:00:00"
       default: "09:00:00"
       selector: *time_selector
 
     target_temp_2: 
-      name: "Temperature"
+      name: "Then change to"
       example: 17
       default: 17
       selector: *temp_selector
     next_change_at_2: 
-      name: Time
+      name: Until
       example: "17:00:00"
       default: "17:00:00"
       selector: *time_selector
 
     target_temp_3: 
-      name: "Temperature"
+      name: "Then change to"
       example: 21
       default: 21
       selector: *temp_selector
     next_change_at_3: 
-      name: Time
+      name: Until
       example: "23:00:00"
       default: "23:00:00"
       selector: *time_selector
 
     target_temp_4:
-      name: "Temperature"
+      name: "Then change to"
       example: 17
       default: 17
       selector: *temp_selector
     next_change_at_4: 
-      name: Time
+      name: Until
       default: "23:00:00"
       selector: *time_selector
     
     target_temp_5:
-      name: "Temperature"
+      name: "Then change to"
       default: 17
       selector: *temp_selector
     next_change_at_5: 
-      name: Time
+      name: Until
       default: "23:00:00"
       selector: *time_selector
 
     target_temp_6:
-      name: "Temperature"
+      name: "Then change to"
       default: 17
       selector: *temp_selector
