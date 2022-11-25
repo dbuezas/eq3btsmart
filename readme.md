@@ -6,7 +6,6 @@
 A modernized temporary replacement for the native Home Assistant component.
 
 
-<img width="685" alt="image" src="https://user-images.githubusercontent.com/777196/202929567-04d769f4-8f43-4032-9036-446ad447512b.png">
 
 [Home Assistant Forum Post](https://community.home-assistant.io/t/eq3-bt-smart-thermostat-working-with-v-2022-7/476620)
 
@@ -39,6 +38,23 @@ A modernized temporary replacement for the native Home Assistant component.
 
 See here https://github.com/rytilahti/python-eq3bt#pairing
 
+### Device entities
+
+<img width="685" alt="image" src="https://user-images.githubusercontent.com/777196/202929567-04d769f4-8f43-4032-9036-446ad447512b.png">
+
+### Setting schedules
+
+The internal schedules of the Auto mode can be set via a service
+
+<img width="445" alt="image" src="https://user-images.githubusercontent.com/777196/204042126-b0e434cb-eceb-487b-bf0c-7ce178904622.png">
+
+### Viewing schedules
+
+There is a button to fetch the schedules from the thermostats. These are shown as attributes of that button.
+
+<img width="385" alt="image" src="https://user-images.githubusercontent.com/777196/204042508-2d95e613-76f3-4b14-b6e4-944de487a9ed.png">
+
+
 ### Differences with the original component:
 
 - [x] It works in HA version > 2022.7
@@ -54,7 +70,7 @@ See here https://github.com/rytilahti/python-eq3bt#pairing
 - [x] `Current Temperature` updates immediately, regardless of when the bluetooth connection is made. The component will apply the change as soon as it can connect with the device.
 - [x] Service to fetch heating schedules and serial inside the thermostat
 - [x] Only one concurrent request per thermostat
-- [ ] Service to set the heating schedules (Work in progress)
+- [x] Service to set the heating schedules (Work in progress)
 - [ ] Removed support for installing via yaml
 - [ ] Support pairing while adding entity
 
