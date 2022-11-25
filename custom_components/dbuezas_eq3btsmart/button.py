@@ -1,17 +1,92 @@
+import datetime
+
+from .python_eq3bt.eq3bt.structures import (
+    HOUR_24_PLACEHOLDER,
+)
 from .const import DOMAIN
 import logging
 
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import format_mac
-from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
+from .python_eq3bt.eq3bt.eq3btsmart import EQ3BT_MAX_TEMP, EQ3BT_MIN_TEMP, Thermostat
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers import entity_platform
-from datetime import time
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def times_and_temps_schema(value):
+    """Validate times."""
+    times = [value.get(f"next_change_at_{i}") for i in range(6)]
+    times.append(None)
+
+    # ensure times has no gaps
+    for i in range(len(times) - 1):
+        if times[i] == None and times[i + 1] != None:
+            raise vol.Invalid(f"Missing next_change_at_{i} before: {times[i+1]}")
+
+    times = times[0 : times.index(None)]
+    # ensure times is sorted
+    for i in range(len(times) - 1):
+        if not times[i] < times[i + 1]:
+            raise vol.Invalid(f"Times not in order: {times[i]} ≥ {times[i+1]}")
+
+    temps = [value.get(f"target_temp_{i}") for i in range(7)]
+    temps.append(None)
+
+    # ensure temps has no gaps
+    for i in range(len(temps) - 1):
+        if temps[i] == None and temps[i + 1] != None:
+            raise vol.Invalid(f"Missing target_temp_{i}")
+
+    temps = temps[0 : temps.index(None)]
+
+    # ensure non-empty
+    if len(temps) == 0:
+        raise vol.Invalid(f"Missing target_temp_0")
+
+    # ensure final temperature
+    if len(temps) > len(times) + 1:
+        if len(times) == 0:
+            raise vol.Invalid(f"Missing next_change_at_{len(times)}")
+        raise vol.Invalid(f"Missing next_change_at_{len(times)} after {times[-1]}")
+    if len(temps) < len(times) + 1:
+        raise vol.Invalid(
+            f"Missing target_temp_{len(temps)} after {times[len(temps)-1]}"
+        )
+    return value
+
+
+WEEK_DAYS = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"]
+EQ3_TEMPERATURE = vol.Range(min=EQ3BT_MIN_TEMP, max=EQ3BT_MAX_TEMP)
+
+SCHEDULE_SCHEMA = {
+    vol.Required("days"): vol.All(cv.ensure_list, [vol.In(WEEK_DAYS)]),
+    vol.Optional("target_temp_0"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_0"): cv.time,
+    vol.Optional("target_temp_1"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_1"): cv.time,
+    vol.Optional("target_temp_2"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_2"): cv.time,
+    vol.Optional("target_temp_3"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_3"): cv.time,
+    vol.Optional("target_temp_4"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_4"): cv.time,
+    vol.Optional("target_temp_5"): EQ3_TEMPERATURE,
+    vol.Optional("next_change_at_5"): cv.time,
+    vol.Optional("target_temp_6"): EQ3_TEMPERATURE,
+}
+
+SET_SCHEDULE_SCHEMA = vol.All(
+    cv.make_entity_service_schema(SCHEDULE_SCHEMA),
+    times_and_temps_schema,
+)
 
 
 async def async_setup_entry(
@@ -24,21 +99,16 @@ async def async_setup_entry(
 
     new_devices = [
         FetchScheduleButton(eq3),
-        ForceQueryButton(eq3),
+        FetchButton(eq3),
     ]
     async_add_entities(new_devices)
 
     platform = entity_platform.async_get_current_platform()
 
     platform.async_register_entity_service(
-        "fetch_schedule",
-        {},
-        FetchScheduleButton.fetch_schedule.__name__,
-    )
-    platform.async_register_entity_service(
         "set_schedule",
-        {},
-        FetchScheduleButton.set_schedule.__name__,
+        SET_SCHEDULE_SCHEMA,  # type: ignore
+        "set_schedule",
     )
 
 
@@ -79,43 +149,47 @@ class FetchScheduleButton(Base):
             self._thermostat.schedule,
         )
 
-    def set_schedule(self, day: int = 0):
-        _LOGGER.debug("[%s] set_schedule (day %s)", self._thermostat.name, day)
+    async def set_schedule(self, **kwargs) -> None:
+        _LOGGER.debug("[%s] set_schedule (day %s)", self._thermostat.name, kwargs)
+        for day in kwargs["days"]:
+
+            times = [
+                kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
+            ]
+            times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
+
+            temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
+
+            hours = []
+            for i in range(0, 6):
+                hours.append(
+                    {
+                        "target_temp": temps[i],
+                        "next_change_at": times[i],
+                    }
+                )
+            await self._thermostat.async_set_schedule(day=day, hours=hours)
 
     @property
     def extra_state_attributes(self):
         schedule = {}
-
-        def stringifyTime(timeObj):
-            if isinstance(timeObj, time):
-                return str(timeObj.hour) + ":" + str(timeObj.minute)
-            return None
-
         for day in self._thermostat.schedule:
-            obj = self._thermostat.schedule[day]
+            day_raw = self._thermostat.schedule[day]
+            day_nice = {"day": day}
+            for i, entry in enumerate(day_raw.hours):
+                day_nice[f"target_temp_{i}"] = entry.target_temp
+                if entry.next_change_at == HOUR_24_PLACEHOLDER:
+                    break
+                day_nice[f"next_change_at_{i}"] = entry.next_change_at.isoformat()
+            schedule[day] = day_nice
 
-            def mapFunc(hourObj):
-                return {
-                    "target_temp": hourObj.target_temp,
-                    "next_change_at": stringifyTime(hourObj.next_change_at),
-                }
-
-            schedule[day] = {
-                "base_temp": obj.base_temp,
-                "next_change_at": stringifyTime(obj.next_change_at),
-                "hours": list(map(mapFunc, obj.hours)),
-            }
-        dev_specific = {
-            "schedule": schedule,
-        }
-
-        return dev_specific
+        return schedule
 
 
-class ForceQueryButton(Base):
+class FetchButton(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
-        self._attr_name = "Force Query"
+        self._attr_name = "Fetch"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:

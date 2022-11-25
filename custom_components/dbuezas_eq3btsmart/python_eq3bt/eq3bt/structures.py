@@ -153,8 +153,6 @@ Status = "Status" / Struct(
 Schedule = "Schedule" / Struct(
     "cmd" / Enum(Int8ub, **NAME_TO_CMD),
     "day" / Enum(Int8ub, **NAME_TO_DAY),
-    "base_temp" / TempAdapter(Int8ub),
-    "next_change_at" / TimeAdapter(Int8ub),
     "hours"
     / GreedyRange(  # noqa: W503
         Struct(

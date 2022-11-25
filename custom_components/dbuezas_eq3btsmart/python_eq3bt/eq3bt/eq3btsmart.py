@@ -116,7 +116,7 @@ class Thermostat:
     def handle_notification(self, data: bytearray):
         """Handle Callback from a Bluetooth (GATT) request."""
         _LOGGER.debug("[%s] Received notification from the device.", self.name)
-
+        updated = True
         if data[0] == PROP_INFO_RETURN and data[1] == 1:
             _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
             self._status = Status.parse(data)
@@ -132,14 +132,16 @@ class Thermostat:
             _LOGGER.debug("[%s] Parsed device data: %s", self.name, self._device_data)
 
         else:
+            updated = False
             _LOGGER.debug(
                 "[%s] Unknown notification %s (%s)",
                 self.name,
                 data[0],
                 codecs.encode(data, "hex"),
             )
-        for callback in self._on_update_callbacks:
-            callback()
+        if updated:
+            for callback in self._on_update_callbacks:
+                callback()
 
     async def async_query_id(self):
         """Query device identification information, e.g. the serial number."""
@@ -182,10 +184,25 @@ class Thermostat:
         """
         return self._schedule
 
-    async def async_set_schedule(self, data):
+    async def async_set_schedule(self, day, hours):
+        _LOGGER.debug(
+            "[%s] Setting schedule day=[%s], hours=[%s]", self.name, day, hours
+        )
+
         """Sets the schedule for the given day."""
-        value = Schedule.build(data)
-        await self._conn.async_make_request(value)
+        data = Schedule.build(
+            {
+                "cmd": "write",
+                "day": day,
+                "hours": hours,
+            }
+        )
+        await self._conn.async_make_request(data)
+
+        parsed = self.parse_schedule(data)
+        self._schedule[parsed.day] = parsed
+        for callback in self._on_update_callbacks:
+            callback()
 
     @property
     def target_temperature(self):
