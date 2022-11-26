@@ -23,52 +23,36 @@ _LOGGER = logging.getLogger(__name__)
 
 def times_and_temps_schema(value):
     """Validate times."""
-    times = [value.get(f"next_change_at_{i}") for i in range(6)]
-    times.append(None)
 
-    # ensure times has no gaps
-    for i in range(len(times) - 1):
-        if times[i] == None and times[i + 1] != None:
-            raise vol.Invalid(f"Missing next_change_at_{i} before: {times[i+1]}")
+    def v_assert(bool, error):
+        if not bool:
+            raise vol.Invalid(error)
 
-    times = times[0 : times.index(None)]
-    # ensure times is sorted
-    for i in range(len(times) - 1):
-        if not times[i] < times[i + 1]:
-            raise vol.Invalid(f"Times not in order: {times[i]} ≥ {times[i+1]}")
+    time = lambda i: value.get(f"next_change_at_{i}")
+    temp = lambda i: value.get(f"target_temp_{i}")
 
-    temps = [value.get(f"target_temp_{i}") for i in range(7)]
-    temps.append(None)
-
-    # ensure temps has no gaps
-    for i in range(len(temps) - 1):
-        if temps[i] == None and temps[i + 1] != None:
-            raise vol.Invalid(f"Missing target_temp_{i}")
-
-    temps = temps[0 : temps.index(None)]
-
-    # ensure non-empty
-    if len(temps) == 0:
-        raise vol.Invalid(f"Missing target_temp_0")
-
-    # ensure final temperature
-    if len(temps) > len(times) + 1:
-        if len(times) == 0:
-            raise vol.Invalid(f"Missing next_change_at_{len(times)}")
-        raise vol.Invalid(f"Missing next_change_at_{len(times)} after {times[-1]}")
-    if len(temps) < len(times) + 1:
-        raise vol.Invalid(
-            f"Missing target_temp_{len(temps)} after {times[len(temps)-1]}"
-        )
+    v_assert(temp(0), f"Missing target_temp_{0}")
+    if time(0):
+        v_assert(temp(1), f"Missing target_temp_{1} after: {time(0)}")
+    for i in range(1, 7):
+        if time(i):
+            v_assert(time(i - 1), f"Missing next_change_at_{i-1} before: {time(i)}")
+            v_assert(
+                time(i - 1) < time(i),
+                f"Times not in order at next_change_at_{i}: {time(i-1)}≥{time(i)}",
+            )
+            v_assert(temp(i + 1), f"Missing target_temp_{i+1} after: {time(i)}")
+        if temp(i):
+            v_assert(temp(i - 1), f"Missing target_temp_{i-1} before: {time(i-1)}")
+            v_assert(time(i - 1), f"Missing next_change_at_{i-1} after: {time(i-2)}")
     return value
 
 
-WEEK_DAYS = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"]
 EQ3_TEMPERATURE = vol.Range(min=EQ3BT_MIN_TEMP, max=EQ3BT_MAX_TEMP)
 
 SCHEDULE_SCHEMA = {
-    vol.Required("days"): vol.All(cv.ensure_list, [vol.In(WEEK_DAYS)]),
-    vol.Optional("target_temp_0"): EQ3_TEMPERATURE,
+    vol.Required("days"): cv.weekdays,
+    vol.Required("target_temp_0"): EQ3_TEMPERATURE,
     vol.Optional("next_change_at_0"): cv.time,
     vol.Optional("target_temp_1"): EQ3_TEMPERATURE,
     vol.Optional("next_change_at_1"): cv.time,
@@ -152,14 +136,11 @@ class FetchScheduleButton(Base):
     async def set_schedule(self, **kwargs) -> None:
         _LOGGER.debug("[%s] set_schedule (day %s)", self._thermostat.name, kwargs)
         for day in kwargs["days"]:
-
             times = [
                 kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
             ]
             times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
-
             temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
-
             hours = []
             for i in range(0, 6):
                 hours.append(
