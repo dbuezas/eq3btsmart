@@ -6,6 +6,7 @@ import logging
 import asyncio
 
 from .const import (
+    CONF_APROX_CURRENT_TEMP,
     EQ_TO_HA_HVAC,
     HA_TO_EQ_HVAC,
     Preset,
@@ -58,7 +59,9 @@ async def async_setup_entry(
 
     new_entities = [
         EQ3Climate(
-            eq3, config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            eq3,
+            config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            config_entry.options.get(CONF_APROX_CURRENT_TEMP, False),
         )
     ]
     _LOGGER.debug("[%s] created climate entity", eq3.name)
@@ -72,7 +75,9 @@ async def async_setup_entry(
 class EQ3Climate(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _thermostat: Thermostat, scan_interval: float):
+    def __init__(
+        self, _thermostat: Thermostat, scan_interval: float, conf_aprox_current_temp
+    ):
         """Initialize the thermostat."""
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
@@ -85,6 +90,7 @@ class EQ3Climate(ClimateEntity):
         self._skip_next_update = False
         self._is_available = False
         self._scan_interval = scan_interval
+        self._conf_aprox_current_temp = conf_aprox_current_temp
         # We are the main entity of the device and should use the device name.
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
@@ -113,10 +119,10 @@ class EQ3Climate(ClimateEntity):
             self._thermostat.name,
             self._scan_interval,
         )
-        await self.async_update()
         self._cancel_timer = async_track_time_interval(
             self.hass, self.async_update, timedelta(minutes=self._scan_interval)
         )
+        await self.async_update()
 
     @callback
     def _on_updated(self):
@@ -141,6 +147,11 @@ class EQ3Climate(ClimateEntity):
     @property
     def current_temperature(self):
         """Can not report temperature, so return target_temperature."""
+        if self._conf_aprox_current_temp:
+            if self._thermostat.valve_state is None:
+                return None
+            valve: int = self._thermostat.valve_state
+            return (1 - valve / 100) * 2 + self.target_temperature - 2 + 0.5
         return self._current_temperature
 
     @property

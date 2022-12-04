@@ -35,3 +35,6 @@ class Preset(str, Enum):
     AWAY = PRESET_AWAY
     LOCKED = "Locked"
     OPEN = "Open"
+
+
+CONF_APROX_CURRENT_TEMP = "conf_aprox_current_temp"

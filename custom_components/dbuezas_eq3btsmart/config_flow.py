@@ -10,7 +10,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
 
 from .climate import DEFAULT_SCAN_INTERVAL, EQ3Climate
-from .const import DOMAIN
+from .const import CONF_APROX_CURRENT_TEMP, DOMAIN
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -130,10 +130,12 @@ class OptionsFlowHandler(OptionsFlow):
                             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
                         ),
                     ): cv.positive_float,
-                    # vol.Optional(
-                    #     "advanced",
-                    #     default=self.config_entry.options.get("advanced", False),
-                    # ): cv.boolean,
+                    vol.Optional(
+                        CONF_APROX_CURRENT_TEMP,
+                        default=self.config_entry.options.get(
+                            CONF_APROX_CURRENT_TEMP, False
+                        ),
+                    ): cv.boolean,
                 }
             ),
         )

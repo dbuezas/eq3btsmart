@@ -31,7 +31,8 @@
         "description": "Scan interval of 1 minute keeps the device connected and makes response instantaneous but it may affect battery life. Default is 5 minutes.",
         "data": {
           "advanced": "Advanced mode. Adds extra debug entities",
-          "scan_interval": "Scan interval (minutes) "
+          "scan_interval": "Scan interval (minutes)",
+          "conf_aprox_current_temp": "Aproximate current temperature using valve state"
         }
       }
     }
