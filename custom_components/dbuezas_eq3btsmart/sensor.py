@@ -109,7 +109,6 @@ class FirmwareVersionSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_added_to_hass(self) -> None:
-        _LOGGER.debug("[%s] adding", self._thermostat.name)
         asyncio.get_event_loop().create_task(self.fetch_serial())
 
     async def fetch_serial(self):

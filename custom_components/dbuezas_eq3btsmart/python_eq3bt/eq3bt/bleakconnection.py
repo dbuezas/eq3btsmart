@@ -14,7 +14,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 
 from . import BackendException
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from bleak.backends.device import BLEDevice
 REQUEST_TIMEOUT = 1
 RETRY_BACK_OFF = 1
 RETRIES = 14
@@ -49,6 +52,7 @@ class BleakConnection:
         self.rssi = None
         self._lock = asyncio.Lock()
         self._conn: BleakClient | None = None
+        self._ble_device: BLEDevice | None = None
         self._connection_callbacks = []
         self.retries = 0
 
@@ -60,6 +64,10 @@ class BleakConnection:
             callback()
 
     def shutdown(self):
+        _LOGGER.debug(
+            "[%s] closing connections",
+            self._name,
+        )
         self._terminate_event.set()
         self._notify_event.set()
 
@@ -68,20 +76,26 @@ class BleakConnection:
             raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
-        ble_device = bluetooth.async_ble_device_from_address(
+        self._ble_device = bluetooth.async_ble_device_from_address(
             self._hass, self._mac, connectable=True
         )
-        if ble_device:
-            self.rssi = ble_device.rssi
+        if self._ble_device:
+            self.rssi = self._ble_device.rssi
+
+            _LOGGER.debug(
+                "[%s] details: %s",
+                self._name,
+                self._ble_device.details,
+            )
             _LOGGER.debug(
                 "[%s] Connecting with ble_device, rssi: %s",
                 self._name,
-                ble_device.rssi,
+                self._ble_device.rssi,
             )
             self._on_connection_event()
             self._conn = await establish_connection(
                 client_class=BleakClient,
-                device=ble_device,
+                device=self._ble_device,
                 name=self._name,
                 disconnected_callback=lambda client: self._on_connection_event(),
                 max_attempts=2,
@@ -147,6 +161,7 @@ class BleakConnection:
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
                     await conn.write_gatt_char(PROP_WRITE_UUID, value)
                     await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
+                    self.throw_if_terminating()
                     await conn.stop_notify(PROP_NTFY_UUID)
                 return
             except Exception as ex:

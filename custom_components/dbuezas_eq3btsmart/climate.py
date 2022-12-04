@@ -1,6 +1,7 @@
 """Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
 
 from __future__ import annotations
+from datetime import timedelta
 import logging
 import asyncio
 
@@ -14,10 +15,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_MAC,
+    CONF_SCAN_INTERVAL,
     PRECISION_HALVES,
     TEMP_CELSIUS,
 )
@@ -31,26 +34,18 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate import ClimateEntity
 import voluptuous as vol
 
-from datetime import datetime, timedelta
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
-    EQ3BT_ON_TEMP,
     Mode,
     Thermostat,
 )
 from homeassistant.config_entries import ConfigEntry
 
-
-SCAN_INTERVAL = timedelta(minutes=5)
-# PARALLEL_UPDATES = 0
-
 _LOGGER = logging.getLogger(__name__)
-
-
 DEVICE_SCHEMA = vol.Schema({vol.Required(CONF_MAC): cv.string})
-
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+DEFAULT_SCAN_INTERVAL = 1  # minutes
 
 
 async def async_setup_entry(
@@ -61,7 +56,12 @@ async def async_setup_entry(
     """Add cover for passed entry in HA."""
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
 
-    new_entities = [EQ3BTSmartThermostat(eq3, hass)]
+    new_entities = [
+        EQ3Climate(
+            eq3, config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
+    ]
+    _LOGGER.debug("[%s] created climate entity", eq3.name)
 
     async_add_entities(
         new_entities,
@@ -69,12 +69,11 @@ async def async_setup_entry(
     )
 
 
-class EQ3BTSmartThermostat(ClimateEntity):
+class EQ3Climate(ClimateEntity):
     """Representation of an eQ-3 Bluetooth Smart thermostat."""
 
-    def __init__(self, _thermostat: Thermostat, _hass: HomeAssistant):
+    def __init__(self, _thermostat: Thermostat, scan_interval: float):
         """Initialize the thermostat."""
-        self.hass = _hass
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
@@ -85,18 +84,39 @@ class EQ3BTSmartThermostat(ClimateEntity):
         # This means after setting a prop, we can skip the next scheduled update.
         self._skip_next_update = False
         self._is_available = False
-
+        self._scan_interval = scan_interval
         # We are the main entity of the device and should use the device name.
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
         self._attr_name = None
+        self._attr_supported_features = SUPPORT_FLAGS
+        self._attr_temperature_unit = TEMP_CELSIUS
+        self._attr_precision = PRECISION_HALVES
+        self._attr_hvac_modes = list(HA_TO_EQ_HVAC)
+        self._attr_min_temp = EQ3BT_OFF_TEMP
+        self._attr_max_temp = EQ3BT_MAX_TEMP
+        self._attr_preset_modes = list(Preset)
+        self._attr_unique_id = format_mac(self._thermostat.mac)
+        self._attr_should_poll = False
 
     async def async_added_to_hass(self) -> None:
         _LOGGER.debug("[%s] adding", self._thermostat.name)
-        asyncio.get_event_loop().create_task(self.async_update())
+        asyncio.get_event_loop().create_task(self._async_update_loop())
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._thermostat.name)
+        self._cancel_timer()
+
+    async def _async_update_loop(self):
+        _LOGGER.debug(
+            "[%s] update_loop starting scan = %s",
+            self._thermostat.name,
+            self._scan_interval,
+        )
+        await self.async_update()
+        self._cancel_timer = async_track_time_interval(
+            self.hass, self.async_update, timedelta(minutes=self._scan_interval)
+        )
 
     @callback
     def _on_updated(self):
@@ -114,24 +134,9 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self.schedule_update_ha_state(force_refresh=False)
 
     @property
-    def supported_features(self):
-        """Return the list of supported features."""
-        return SUPPORT_FLAGS
-
-    @property
     def available(self) -> bool:
         """Return if thermostat is available."""
         return self._is_available
-
-    @property
-    def temperature_unit(self):
-        """Return the unit of measurement that is used."""
-        return TEMP_CELSIUS
-
-    @property
-    def precision(self):
-        """Return eq3bt's precision 0.5."""
-        return PRECISION_HALVES
 
     @property
     def current_temperature(self):
@@ -145,20 +150,20 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-
         # We can also set the HVAC mode when setting the temperature.
         # This needs to be done before changing the temperature because
         # changing the mode might change the temperature.
         if ATTR_HVAC_MODE in kwargs:
             mode = kwargs.get(ATTR_HVAC_MODE)
+            assert mode != None
             # Setting the mode to off while change the tempreature doesn't make sense.
             if mode != HVACMode.OFF:
                 await self.async_set_hvac_mode(mode)
             else:
                 _LOGGER.warning(
                     "[%s] Can't change temperature while changing HVAC mode to off. Ignoring mode change.",
-                    self._thermostat.name
-                    )
+                    self._thermostat.name,
+                )
 
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
@@ -185,11 +190,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
 
         return EQ_TO_HA_HVAC[self._thermostat.mode]
 
-    @property
-    def hvac_modes(self):
-        """Return the list of available operation modes."""
-        return list(HA_TO_EQ_HVAC)
-
     async def async_set_hvac_mode(self, hvac_mode):
         """Set operation mode."""
         if hvac_mode == HVACMode.OFF:
@@ -204,30 +204,20 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._skip_next_update = True
 
     @property
-    def min_temp(self):
-        """Return the minimum temperature."""
-        return EQ3BT_OFF_TEMP
-
-    @property
-    def max_temp(self):
-        """Return the maximum temperature."""
-        return EQ3BT_MAX_TEMP
-
-    @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp.
         Requires SUPPORT_PRESET_MODE.
         """
+        if self._thermostat.window_open:
+            return "Window"
         if self._thermostat.boost:
             return Preset.BOOST
+        if self._thermostat.low_battery:
+            return "Low Battery"
         if self._thermostat.away:
             return Preset.AWAY
         if self._thermostat.locked:
             return Preset.LOCKED
-        if self._thermostat.target_temperature == self._thermostat.eco_temperature:
-            return Preset.ECO
-        if self._thermostat.target_temperature == self._thermostat.comfort_temperature:
-            return Preset.COMFORT
         if self._thermostat.mode == Mode.On:
             return Preset.OPEN
         return Preset.NONE
@@ -263,18 +253,6 @@ class EQ3BTSmartThermostat(ClimateEntity):
         self._skip_next_update = True
 
     @property
-    def preset_modes(self):
-        """Return a list of available preset modes.
-        Requires SUPPORT_PRESET_MODE.
-        """
-        return list(Preset)
-
-    @property
-    def unique_id(self) -> str:
-        """Return the MAC address of the thermostat."""
-        return format_mac(self._thermostat.mac)
-
-    @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             name=self._thermostat.name,
@@ -285,7 +263,7 @@ class EQ3BTSmartThermostat(ClimateEntity):
             connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
         )
 
-    async def async_update(self):
+    async def async_update(self, now=None):
         """Update the data from the thermostat."""
         if self._skip_next_update:
             self._skip_next_update = False

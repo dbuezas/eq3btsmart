@@ -1,15 +1,15 @@
-"""
-Config flow for the EQ3 One Custom Component
-Author: herikw
-https://github.com/herikw/home-assistant-custom-components
-"""
+from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_MAC, CONF_NAME
+from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL
+from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
+from homeassistant.helpers import config_validation as cv
+from homeassistant.config_entries import ConfigEntry, OptionsFlow
 
-from .climate import EQ3BTSmartThermostat
+from .climate import DEFAULT_SCAN_INTERVAL, EQ3Climate
 from .const import DOMAIN
 import logging
 
@@ -97,4 +97,43 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=user_input[CONF_NAME],
             data={"name": user_input["name"], "mac": self.discovery_info.address},
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> OptionsFlow:
+        """Create the options flow."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(OptionsFlow):
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=self.config_entry.options.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
+                    ): cv.positive_float,
+                    # vol.Optional(
+                    #     "advanced",
+                    #     default=self.config_entry.options.get("advanced", False),
+                    # ): cv.boolean,
+                }
+            ),
         )

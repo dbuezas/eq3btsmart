@@ -20,7 +20,12 @@ async def async_setup_entry(
 ) -> None:
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
 
-    new_devices = [LockedSwitch(eq3), AwaySwitch(eq3), ConnectionSwitch(eq3)]
+    new_devices = [
+        LockedSwitch(eq3),
+        AwaySwitch(eq3),
+        BoostSwitch(eq3),
+        ConnectionSwitch(eq3),
+    ]
 
     async_add_entities(new_devices)
 
@@ -76,6 +81,24 @@ class AwaySwitch(Base):
     @property
     def is_on(self):
         return self._thermostat.away
+
+
+class BoostSwitch(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = "Boost"
+        self._attr_icon = "mdi:speedometer"
+
+    async def async_turn_on(self):
+        await self._thermostat.async_set_boost(True)
+
+    async def async_turn_off(self):
+        await self._thermostat.async_set_boost(False)
+
+    @property
+    def is_on(self):
+        return self._thermostat.boost
 
 
 class ConnectionSwitch(Base):

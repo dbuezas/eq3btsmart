@@ -28,7 +28,6 @@ async def async_setup_entry(
         BusySensor(eq3),
         ConnectedSensor(eq3),
         DSTSensor(eq3),
-        UnknownSensor(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -62,6 +61,12 @@ class BusySensor(Base):
         return self._thermostat._conn._lock.locked()
 
 
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    # raise TypeError ("Type %s not serializable" % type(obj))
+    return None
+
+
 class ConnectedSensor(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
@@ -69,6 +74,15 @@ class ConnectedSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_name = "Connected"
         self._attr_device_class = "connectivity"
+
+    @property
+    def extra_state_attributes(self):
+        """Return the device specific state attributes."""
+        if (device := self._thermostat._conn._ble_device) is None:
+            return None
+        if (details := device.details) is None:
+            return None
+        return json.loads(json.dumps(details["props"], default=json_serial))
 
     @property
     def is_on(self):
@@ -112,15 +126,3 @@ class DSTSensor(Base):
     @property
     def is_on(self):
         return self._thermostat.dst
-
-
-class UnknownSensor(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._attr_name = "Unknown"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @property
-    def is_on(self):
-        return self._thermostat.unknown
