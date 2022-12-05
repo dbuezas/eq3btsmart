@@ -5,7 +5,6 @@ from homeassistant.helpers.device_registry import format_mac
 from .python_eq3bt.eq3bt.eq3btsmart import Mode, Thermostat
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.switch import SwitchEntity
-from datetime import datetime, timedelta
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant

@@ -251,13 +251,17 @@ class Thermostat:
             return await self._async_set_mode(0x40 | int(temperature * 2))
 
     @property
-    def away(self):
+    def away(self) -> bool | None:
         """Returns True if the thermostat is in boost mode."""
-        return self._status and self._status.mode.AWAY
+        if self._status == None:
+            return None
+        return self._status.mode.AWAY
 
     @property
-    def away_end(self):
-        return self._status and self._status.away
+    def away_end(self) -> datetime | None:
+        if self._status == None:
+            return None
+        return self._status.away
 
     async def async_set_away(self, away: bool):
         """Sets away mode with default temperature."""
@@ -282,9 +286,11 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def boost(self):
+    def boost(self) -> bool | None:
         """Returns True if the thermostat is in boost mode."""
-        return self._status and self._status.mode.BOOST
+        if self._status == None:
+            return None
+        return self._status.mode.BOOST
 
     async def async_set_boost(self, boost):
         """Sets boost mode."""
@@ -293,15 +299,19 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def valve_state(self):
+    def valve_state(self) -> int | None:
         """Returns the valve state. Probably reported as percent open."""
-        return self._status and self._status.valve
+        if self._status == None:
+            return None
+        return self._status.valve
 
     @property
-    def window_open(self):
+    def window_open(self) -> bool | None:
         """Returns True if the thermostat reports a open window
         (detected by sudden drop of temperature)"""
-        return self._status and self._status.mode.WINDOW
+        if self._status == None:
+            return None
+        return self._status.mode.WINDOW
 
     async def async_window_open_config(self, temperature, duration):
         """Configures the window open behavior. The duration is specified in
@@ -335,19 +345,18 @@ class Thermostat:
         return self._presets and self._presets.window_open_time  # type: ignore
 
     @property
-    def unknown(self):
-        """Returns True if the thermostat is in unknown state."""
-        return self._status and self._status.mode.UNKNOWN
-
-    @property
-    def dst(self):
+    def dst(self) -> bool | None:
         """Returns True if the thermostat is in Daylight Saving Time."""
-        return self._status and self._status.mode.DST
+        if self._status == None:
+            return None
+        return self._status.mode.DST
 
     @property
-    def locked(self):
+    def locked(self) -> bool | None:
         """Returns True if the thermostat is locked."""
-        return self._status and self._status.mode.LOCKED
+        if self._status == None:
+            return None
+        return self._status.mode.LOCKED
 
     async def async_set_locked(self, lock):
         """Locks or unlocks the thermostat."""
@@ -356,9 +365,11 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def low_battery(self):
+    def low_battery(self) -> bool | None:
         """Returns True if the thermostat reports a low battery."""
-        return self._status and self._status.mode.LOW_BATTERY
+        if self._status == None:
+            return None
+        return self._status.mode.LOW_BATTERY
 
     async def async_temperature_presets(self, comfort, eco):
         """Set the thermostats preset temperatures comfort (sun) and
