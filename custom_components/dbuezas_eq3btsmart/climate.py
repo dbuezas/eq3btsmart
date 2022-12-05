@@ -22,7 +22,7 @@ from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_MAC,
     CONF_SCAN_INTERVAL,
-    PRECISION_HALVES,
+    PRECISION_TENTHS,
     TEMP_CELSIUS,
 )
 from homeassistant.components.climate.const import (
@@ -79,21 +79,21 @@ class EQ3Climate(ClimateEntity):
         self, _thermostat: Thermostat, scan_interval: float, conf_aprox_current_temp
     ):
         """Initialize the thermostat."""
+        self._thermostat = _thermostat
+        self._thermostat.register_update_callback(self._on_updated)
+        self._scan_interval = scan_interval
+        self._conf_aprox_current_temp = conf_aprox_current_temp
         self._current_temperature = None
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
-        self._thermostat = _thermostat
-        self._thermostat.register_update_callback(self._on_updated)
         self._is_available = False
-        self._scan_interval = scan_interval
-        self._conf_aprox_current_temp = conf_aprox_current_temp
         # We are the main entity of the device and should use the device name.
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
         self._attr_name = None
         self._attr_supported_features = SUPPORT_FLAGS
         self._attr_temperature_unit = TEMP_CELSIUS
-        self._attr_precision = PRECISION_HALVES
+        self._attr_precision = PRECISION_TENTHS
         self._attr_hvac_modes = list(HA_TO_EQ_HVAC)
         self._attr_min_temp = EQ3BT_OFF_TEMP
         self._attr_max_temp = EQ3BT_MAX_TEMP
@@ -117,11 +117,10 @@ class EQ3Climate(ClimateEntity):
             self._scan_interval,
         )
         await self.async_scan()
-        if self._platform_state == EntityPlatformState.REMOVED:
-            return
-        self._cancel_timer = async_call_later(
-            self.hass, timedelta(minutes=self._scan_interval), self._async_scan_loop
-        )
+        if self._platform_state != EntityPlatformState.REMOVED:
+            self._cancel_timer = async_call_later(
+                self.hass, timedelta(minutes=self._scan_interval), self._async_scan_loop
+            )
 
     @callback
     def _on_updated(self):
@@ -270,7 +269,7 @@ class EQ3Climate(ClimateEntity):
             connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
         )
 
-    async def async_scan(self, now=None):
+    async def async_scan(self):
         """Update the data from the thermostat."""
         try:
             await self._thermostat.async_update()
