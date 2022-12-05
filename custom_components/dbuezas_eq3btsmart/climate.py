@@ -15,8 +15,8 @@ from .const import (
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
+from homeassistant.helpers.event import async_call_later
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -84,10 +84,6 @@ class EQ3Climate(ClimateEntity):
         self._is_setting_temperature = False
         self._thermostat = _thermostat
         self._thermostat.register_update_callback(self._on_updated)
-        # HA forces an update after any prop is set (temp, mode, etc)
-        # But each time anything is set, the thermostat responds with the most current data
-        # This means after setting a prop, we can skip the next scheduled update.
-        self._skip_next_update = False
         self._is_available = False
         self._scan_interval = scan_interval
         self._conf_aprox_current_temp = conf_aprox_current_temp
@@ -107,22 +103,25 @@ class EQ3Climate(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         _LOGGER.debug("[%s] adding", self._thermostat.name)
-        asyncio.get_event_loop().create_task(self._async_update_loop())
+        asyncio.get_event_loop().create_task(self._async_scan_loop())
 
     async def async_will_remove_from_hass(self) -> None:
         _LOGGER.debug("[%s] removing", self._thermostat.name)
-        self._cancel_timer()
+        if self._cancel_timer:
+            self._cancel_timer()
 
-    async def _async_update_loop(self):
+    async def _async_scan_loop(self, now=None):
         _LOGGER.debug(
             "[%s] update_loop starting scan = %s",
             self._thermostat.name,
             self._scan_interval,
         )
-        self._cancel_timer = async_track_time_interval(
-            self.hass, self.async_update, timedelta(minutes=self._scan_interval)
+        await self.async_scan()
+        if self._platform_state == EntityPlatformState.REMOVED:
+            return
+        self._cancel_timer = async_call_later(
+            self.hass, timedelta(minutes=self._scan_interval), self._async_scan_loop
         )
-        await self.async_update()
 
     @callback
     def _on_updated(self):
@@ -137,7 +136,7 @@ class EQ3Climate(ClimateEntity):
                 "[%s] Updated but the entity is not loaded", self._thermostat.name
             )
             return
-        self.schedule_update_ha_state(force_refresh=False)
+        self.schedule_update_ha_state()
 
     @property
     def available(self) -> bool:
@@ -185,13 +184,12 @@ class EQ3Climate(ClimateEntity):
         self._is_setting_temperature = True
         self._current_temperature = temperature
         # show current temp now
-        self.async_schedule_update_ha_state(force_refresh=False)
+        self.async_schedule_update_ha_state()
         await self.async_set_temperature_now()
 
     async def async_set_temperature_now(self):
         await self._thermostat.async_set_target_temperature(self._current_temperature)
         self._is_setting_temperature = False
-        self._skip_next_update = True
 
     @property
     def hvac_mode(self):
@@ -209,10 +207,9 @@ class EQ3Climate(ClimateEntity):
         else:  # auto or manual/heat
             self._current_temperature = self.target_temperature
             self._is_setting_temperature = False
-        self.async_schedule_update_ha_state(force_refresh=False)
+        self.async_schedule_update_ha_state()
 
         await self._thermostat.async_set_mode(HA_TO_EQ_HVAC[hvac_mode])
-        self._skip_next_update = True
 
     @property
     def preset_mode(self):
@@ -261,7 +258,6 @@ class EQ3Climate(ClimateEntity):
         # by now, the target temperature should have been (maybe set) and fetched
         self._current_temperature = self.target_temperature
         self._is_setting_temperature = False
-        self._skip_next_update = True
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -274,21 +270,16 @@ class EQ3Climate(ClimateEntity):
             connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
         )
 
-    async def async_update(self, now=None):
+    async def async_scan(self, now=None):
         """Update the data from the thermostat."""
-        if self._skip_next_update:
-            self._skip_next_update = False
-            _LOGGER.debug("[%s] skipped update", self._thermostat.name)
-        else:
-            try:
-                await self._thermostat.async_update()
-                if self._is_setting_temperature:
-                    await self.async_set_temperature_now()
-            except Exception as ex:
-                # otherwise, if this happens during the first update, the entity will be dropped and never update
-                self._is_available = False
-                _LOGGER.error(
-                    "[%s] Error updating, will retry later: %s",
-                    self._thermostat.name,
-                    ex,
-                )
+        try:
+            await self._thermostat.async_update()
+            if self._is_setting_temperature:
+                await self.async_set_temperature_now()
+        except Exception as ex:
+            self._is_available = False
+            _LOGGER.error(
+                "[%s] Error updating: %s",
+                self._thermostat.name,
+                ex,
+            )
