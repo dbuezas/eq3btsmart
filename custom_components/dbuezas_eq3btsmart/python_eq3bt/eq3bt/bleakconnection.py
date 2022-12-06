@@ -81,17 +81,6 @@ class BleakConnection:
         )
         if self._ble_device:
             self.rssi = self._ble_device.rssi
-
-            _LOGGER.debug(
-                "[%s] details: %s",
-                self._name,
-                self._ble_device.details,
-            )
-            _LOGGER.debug(
-                "[%s] Connecting with ble_device, rssi: %s",
-                self._name,
-                self._ble_device.rssi,
-            )
             self._on_connection_event()
             self._conn = await establish_connection(
                 client_class=BleakClient,
@@ -106,23 +95,9 @@ class BleakConnection:
             self._on_connection_event()
 
         else:
-            _LOGGER.debug(
-                "[%s]NO ble_device found",
-                self._name,
-            )
             raise Exception("Device not found")
 
-        if self._conn.is_connected:
-            _LOGGER.debug("[%s] Connected", self._name)
-            try:
-                # TODO: verify that this
-                paired = await self._conn.pair(
-                    1  # 1 = pairing with no protection https://bleak.readthedocs.io/en/latest/backends/windows.html?highlight=pair#bleak.backends.winrt.client.BleakClientWinRT.pair
-                )
-                _LOGGER.debug("[%s] Paired: %s ", self._name, paired)
-            except Exception as ex:
-                _LOGGER.warn("[%s] Failed paring: %s ", self._name, ex)
-        else:
+        if not self._conn.is_connected:
             raise BackendException("Can't connect")
         return self._conn
 
