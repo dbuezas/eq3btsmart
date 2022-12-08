@@ -66,7 +66,7 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 ### Differences with the original component:
 
 - [x] It works in HA version > 2022.7
-- ~~[x] Supports ESP32 Bluetooth proxies~~ Maybe if you have EQ3 firmware v1.20 (doesn't require pairing)
+- ~~[ ] Supports ESP32 Bluetooth proxies~~ (the thermostats will be detected, but no communication follows. 
 - [x] Supports auto discovery
 - [x] Supports adding via config flow (UI)
 - [x] Fixes setting operation mode
@@ -79,8 +79,8 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 - [x] Service to fetch heating schedules and serial inside the thermostat
 - [x] Only one concurrent request per thermostat
 - [x] Service to set the heating schedules (Work in progress)
-- [ ] Removed support for installing via yaml
-- [ ] Support pairing while adding entity
+- ~~[ ] Support for installing via yaml~~
+- ~~[ ] Support pairing while adding entity~~
 
 ### Credits
 
