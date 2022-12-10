@@ -97,7 +97,17 @@ class BleakConnection:
         else:
             raise Exception("Device not found")
 
-        if not self._conn.is_connected:
+        if self._conn.is_connected:
+            _LOGGER.debug("[%s] Connected", self._name)
+            try:
+                # only works with old firmwares w/o pairing pin.
+                paired = await self._conn.pair(
+                    1  # 1 = pairing with no protection https://bleak.readthedocs.io/en/latest/backends/windows.html?highlight=pair#bleak.backends.winrt.client.BleakClientWinRT.pair
+                )
+                _LOGGER.debug("[%s] Paired: %s ", self._name, paired)
+            except Exception as ex:
+                _LOGGER.warn("[%s] Failed paring: %s ", self._name, ex)
+        else:
             raise BackendException("Can't connect")
         return self._conn
 

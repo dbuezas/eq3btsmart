@@ -28,7 +28,7 @@
     "step": {
       "init": {
         "title": "EQ-3 Options",
-        "description": "Scan interval of 1 minute keeps the device connected and makes response instantaneous but it may affect battery life. Default is 5 minutes.",
+        "description": "Scan interval of 1 minute keeps the device connected and makes response instantaneous but it may affect battery life. Default is 5 minutes. The current temp approximation can only measure up to the target temp and down to 2 degrees below",
         "data": {
           "advanced": "Advanced mode. Adds extra debug entities",
           "scan_interval": "Scan interval (minutes)",
