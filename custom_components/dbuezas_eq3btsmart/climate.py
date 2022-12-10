@@ -87,7 +87,8 @@ class EQ3Climate(ClimateEntity):
         # TODO: refactor the is_setting_temperature mess.
         self._is_setting_temperature = False
         self._is_available = False
-        # We are the main entity of the device and should use the device name.
+        self._cancel_timer = None
+        # This is the main entity of the device and should use the device name.
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
         self._attr_name = None
