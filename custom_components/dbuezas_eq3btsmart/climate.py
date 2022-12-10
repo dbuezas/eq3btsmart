@@ -149,7 +149,7 @@ class EQ3Climate(ClimateEntity):
             if self._thermostat.valve_state is None:
                 return None
             valve: int = self._thermostat.valve_state
-            return (1 - valve / 100) * 2 + self.target_temperature - 2 + 0.5
+            return (1 - valve / 100) * 2 + self.target_temperature - 2
         return self._current_temperature
 
     @property
