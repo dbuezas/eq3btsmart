@@ -277,6 +277,7 @@ class EQ3Climate(ClimateEntity):
                 await self.async_set_temperature_now()
         except Exception as ex:
             self._is_available = False
+            self.schedule_update_ha_state()
             _LOGGER.error(
                 "[%s] Error updating: %s",
                 self._thermostat.name,
