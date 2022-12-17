@@ -1,4 +1,4 @@
-from .const import DOMAIN
+from .const import CONF_DEBUG_MODE, DOMAIN
 import logging
 
 from homeassistant.helpers.device_registry import format_mac
@@ -18,15 +18,17 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
+    debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
 
     new_devices = [
         LockedSwitch(eq3),
         AwaySwitch(eq3),
         BoostSwitch(eq3),
-        ConnectionSwitch(eq3),
     ]
-
     async_add_entities(new_devices)
+    if debug_mode:
+        new_devices = [ConnectionSwitch(eq3)]
+        async_add_entities(new_devices)
 
 
 class Base(SwitchEntity):

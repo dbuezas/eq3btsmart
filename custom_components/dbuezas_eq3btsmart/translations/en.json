@@ -35,7 +35,7 @@
           "conf_external_temp_sensor": "External temperature sensor",
           "conf_adapter": "Bluetooth adapter",
           "conf_stay_connected": "Keep bluetooth connection open",
-          "advanced": "Advanced mode."
+          "conf_debug_mode": "Debug mode. Adds extra entities for debugging."
         }
       }
     }

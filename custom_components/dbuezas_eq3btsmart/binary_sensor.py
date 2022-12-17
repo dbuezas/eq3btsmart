@@ -1,4 +1,4 @@
-from .const import DOMAIN
+from .const import CONF_DEBUG_MODE, DOMAIN
 import json
 import logging
 
@@ -21,15 +21,19 @@ async def async_setup_entry(
 ) -> None:
     """Add sensors for passed config_entry in HA."""
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
-
+    debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
     new_devices = [
         BatterySensor(eq3),
         WindowOpenSensor(eq3),
-        BusySensor(eq3),
-        ConnectedSensor(eq3),
         DSTSensor(eq3),
     ]
     async_add_entities(new_devices)
+    if debug_mode:
+        new_devices = [
+            BusySensor(eq3),
+            ConnectedSensor(eq3),
+        ]
+        async_add_entities(new_devices)
 
 
 class Base(BinarySensorEntity):

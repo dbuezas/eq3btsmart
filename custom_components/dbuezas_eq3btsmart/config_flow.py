@@ -16,6 +16,7 @@ from .const import (
     CONF_CURRENT_TEMP_SELECTOR,
     CONF_EXTERNAL_TEMP_SENSOR,
     CONF_STAY_CONNECTED,
+    CONF_DEBUG_MODE,
     Adapter,
     CurrentTemperatureSelector,
     DEFAULT_ADAPTER,
@@ -228,6 +229,14 @@ class OptionsFlowHandler(OptionsFlow):
                         description={
                             "suggested_value": self.config_entry.options.get(
                                 CONF_STAY_CONNECTED, DEFAULT_STAY_CONNECTED
+                            )
+                        },
+                    ): cv.boolean,
+                    vol.Required(
+                        CONF_DEBUG_MODE,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_DEBUG_MODE, False
                             )
                         },
                     ): cv.boolean,

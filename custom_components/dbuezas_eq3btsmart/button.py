@@ -3,7 +3,7 @@ import datetime
 from .python_eq3bt.eq3bt.structures import (
     HOUR_24_PLACEHOLDER,
 )
-from .const import DOMAIN
+from .const import CONF_DEBUG_MODE, DOMAIN
 import logging
 
 import voluptuous as vol
@@ -80,12 +80,13 @@ async def async_setup_entry(
 ) -> None:
     """Add sensors for passed config_entry in HA."""
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
-
-    new_devices = [
-        FetchScheduleButton(eq3),
-        FetchButton(eq3),
-    ]
+    debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
+    new_devices = [FetchScheduleButton(eq3)]
     async_add_entities(new_devices)
+
+    if debug_mode:
+        new_devices = [FetchButton(eq3)]
+        async_add_entities(new_devices)
 
     platform = entity_platform.async_get_current_platform()
 
