@@ -62,6 +62,12 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 
 <img width="385" alt="image" src="https://user-images.githubusercontent.com/777196/204042508-2d95e613-76f3-4b14-b6e4-944de487a9ed.png">
 
+### Device options
+
+Most notably, you can select a specific bluetooth adapter, or limit to local ones. This allows to coexist with BTProxys and to stay connected with more than 4 thermostats simultaneously using multiple bluetooth dongles.
+
+<img width="420" alt="image" src="https://user-images.githubusercontent.com/777196/208250665-9cead674-6ea3-4260-aa3f-a3237196934b.png">
+
 
 ### Differences with the original component:
 
@@ -78,9 +84,11 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 - [x] `Current Temperature` updates immediately, regardless of when the bluetooth connection is made. The component will apply the change as soon as it can connect with the device.
 - [x] Service to fetch heating schedules and serial inside the thermostat
 - [x] Only one concurrent request per thermostat
-- [x] Service to set the heating schedules (Work in progress)
+- [x] Service to set the heating schedules
 - ~~[ ] Support for installing via yaml~~
 - ~~[ ] Support pairing while adding entity~~
+- [x] All features of the thermostat are exposed as entities
+- [x] Bluetooth adapter, scan interval, etc are configurable.
 
 ### Credits
 
