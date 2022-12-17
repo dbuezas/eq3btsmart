@@ -9,17 +9,20 @@ import asyncio
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from bleak_retry_connector import establish_connection
-from homeassistant.core import HomeAssistant
+from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
+from ...const import Adapter
 from homeassistant.components import bluetooth
+from homeassistant.components.bluetooth.const import DATA_MANAGER
+from homeassistant.components.bluetooth.manager import BluetoothManager
+from homeassistant.core import HomeAssistant, callback
 
 from . import BackendException
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-if TYPE_CHECKING:
-    from bleak.backends.device import BLEDevice
+from bleak.backends.device import BLEDevice
+
 REQUEST_TIMEOUT = 1
-RETRY_BACK_OFF = 1
+RETRY_BACK_OFF = 0.25
 RETRIES = 14
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
@@ -39,12 +42,16 @@ class BleakConnection:
         self,
         mac: str,
         name: str,
+        adapter: str,
+        stay_connected: bool,
         hass: HomeAssistant,
         callback,
     ):
         """Initialize the connection."""
         self._mac = mac
         self._name = name
+        self._adapter = adapter
+        self._stay_connected = stay_connected
         self._hass = hass
         self._callback = callback
         self._notify_event = asyncio.Event()
@@ -55,6 +62,7 @@ class BleakConnection:
         self._ble_device: BLEDevice | None = None
         self._connection_callbacks = []
         self.retries = 0
+        self._round_robin = 0
 
     def register_connection_callback(self, callback) -> None:
         self._connection_callbacks.append(callback)
@@ -71,31 +79,66 @@ class BleakConnection:
         self._terminate_event.set()
         self._notify_event.set()
 
-    def throw_if_terminating(self):
+    async def throw_if_terminating(self):
         if self._terminate_event.is_set():
+            if self._conn:
+                await self._conn.disconnect()
             raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
-        self._ble_device = bluetooth.async_ble_device_from_address(
-            self._hass, self._mac, connectable=True
-        )
-        if self._ble_device:
-            self.rssi = self._ble_device.rssi
-            self._on_connection_event()
+        if self._adapter == Adapter.AUTO:
+            self._ble_device = bluetooth.async_ble_device_from_address(
+                self._hass, self._mac, connectable=True
+            )
+            if self._ble_device == None:
+                raise Exception("Device not found")
+
             self._conn = await establish_connection(
                 client_class=BleakClient,
                 device=self._ble_device,
                 name=self._name,
                 disconnected_callback=lambda client: self._on_connection_event(),
                 max_attempts=2,
-                # cached_services: BleakGATTServiceCollection | None = None,
-                # ble_device_callback:Callable[[], BLEDevice] | None = None,
                 use_services_cache=True,
             )
-            self._on_connection_event()
-
         else:
-            raise Exception("Device not found")
+            MANAGER = cast(BluetoothManager, self._hass.data[DATA_MANAGER])
+
+            device_advertisement_datas = sorted(
+                MANAGER.async_get_discovered_devices_and_advertisement_data_by_address(
+                    address=self._mac, connectable=True
+                ),
+                key=lambda device_advertisement_data: device_advertisement_data[1].rssi
+                or NO_RSSI_VALUE,
+                reverse=True,
+            )
+            if self._adapter == Adapter.LOCAL:
+                if len(device_advertisement_datas) == 0:
+                    raise Exception("Device not found")
+                d_and_a = device_advertisement_datas[
+                    self._round_robin % len(device_advertisement_datas)
+                ]
+            else:  # adapter is e.g /org/bluez/hci0
+                list = [
+                    x
+                    for x in device_advertisement_datas
+                    if (d := x[0].details)
+                    and d.get("props", {}).get("Adapter") == self._adapter
+                ]
+                if len(list) == 0:
+                    raise Exception("Device not found")
+                d_and_a = list[0]
+            self.rssi = d_and_a[1].rssi
+            self._ble_device = d_and_a[0]
+            UnwrappedBleak = BleakClient.__bases__[0]
+            self._conn = UnwrappedBleak(
+                self._ble_device,
+                disconnected_callback=lambda client: self._on_connection_event(),
+                dangerous_use_bleak_cache=True,
+            )
+            await self._conn.connect()
+
+        self._on_connection_event()
 
         if self._conn.is_connected:
             _LOGGER.debug("[%s] Connected", self._name)
@@ -139,18 +182,20 @@ class BleakConnection:
             self.retries += 1
             self._on_connection_event()
             try:
-                self.throw_if_terminating()
+                await self.throw_if_terminating()
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
                 if value != "ONLY CONNECT":
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
                     await conn.write_gatt_char(PROP_WRITE_UUID, value)
                     await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
-                    self.throw_if_terminating()
                     await conn.stop_notify(PROP_NTFY_UUID)
+                    if not self._stay_connected:
+                        await conn.disconnect()
+
                 return
             except Exception as ex:
-                self.throw_if_terminating()
+                await self.throw_if_terminating()
                 _LOGGER.warning(
                     "[%s] Broken connection [retry %s/%s]: %s",
                     self._name,
@@ -158,6 +203,7 @@ class BleakConnection:
                     retries,
                     ex,
                 )
+                self._round_robin = self._round_robin + 1
                 if self.retries >= retries:
                     raise ex
                 await asyncio.sleep(RETRY_BACK_OFF)

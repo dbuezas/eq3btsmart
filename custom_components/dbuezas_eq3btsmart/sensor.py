@@ -31,6 +31,7 @@ async def async_setup_entry(
         FirmwareVersionSensor(eq3),
         MacSensor(eq3),
         RetriesSensor(eq3),
+        PathSensor(eq3),
     ]
     async_add_entities(new_devices)
 
@@ -155,3 +156,17 @@ class RetriesSensor(Base):
     @property
     def state(self):
         return self._thermostat._conn.retries
+
+
+class PathSensor(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
+        self._attr_name = "Path"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def state(self):
+        if self._thermostat._conn._conn == None:
+            return None
+        return self._thermostat._conn._conn._backend._device_path

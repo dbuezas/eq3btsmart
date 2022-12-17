@@ -1,3 +1,4 @@
+import datetime
 from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
@@ -8,9 +9,21 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.helpers import config_validation as cv
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
+from homeassistant.helpers.selector import selector
 
-from .climate import DEFAULT_SCAN_INTERVAL, EQ3Climate
-from .const import CONF_APROX_CURRENT_TEMP, DOMAIN
+from .const import (
+    CONF_ADAPTER,
+    CONF_CURRENT_TEMP_SELECTOR,
+    CONF_EXTERNAL_TEMP_SENSOR,
+    CONF_STAY_CONNECTED,
+    Adapter,
+    CurrentTemperatureSelector,
+    DEFAULT_ADAPTER,
+    DEFAULT_CURRENT_TEMP_SELECTOR,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_STAY_CONNECTED,
+    DOMAIN,
+)
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,11 +54,6 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 errors=errors,
             )
-        # thermostat = EQ3BTSmartThermostat(
-        #     user_input[CONF_MAC], user_input[CONF_NAME], self.hass
-        # )
-        # # TODO is this the correct way to execute synchronous calls in a config flow?
-        # await self.hass.async_add_executor_job(thermostat._thermostat_update)
 
         await self.async_set_unique_id(format_mac(user_input[CONF_MAC]))
         self._abort_if_unique_id_configured(updates=user_input)
@@ -124,17 +132,104 @@ class OptionsFlowHandler(OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
+                    vol.Required(
                         CONF_SCAN_INTERVAL,
-                        default=self.config_entry.options.get(
-                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                        ),
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                            )
+                        },
                     ): cv.positive_float,
+                    vol.Required(
+                        CONF_CURRENT_TEMP_SELECTOR,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_CURRENT_TEMP_SELECTOR,
+                                DEFAULT_CURRENT_TEMP_SELECTOR,
+                            )
+                        },
+                    ): selector(
+                        {
+                            "select": {
+                                "options": [
+                                    {
+                                        "label": "nothing",
+                                        "value": CurrentTemperatureSelector.NOTHING,
+                                    },
+                                    {
+                                        "label": "target temperature to be set (fast)",
+                                        "value": CurrentTemperatureSelector.UI,
+                                    },
+                                    {
+                                        "label": "target temperature in device",
+                                        "value": CurrentTemperatureSelector.DEVICE,
+                                    },
+                                    {
+                                        "label": "valve based calculation",
+                                        "value": CurrentTemperatureSelector.VALVE,
+                                    },
+                                    {
+                                        "label": "external entity",
+                                        "value": CurrentTemperatureSelector.ENTITY,
+                                    },
+                                ],
+                            }
+                        }
+                    ),
                     vol.Optional(
-                        CONF_APROX_CURRENT_TEMP,
-                        default=self.config_entry.options.get(
-                            CONF_APROX_CURRENT_TEMP, False
-                        ),
+                        CONF_EXTERNAL_TEMP_SENSOR,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_EXTERNAL_TEMP_SENSOR, ""
+                            )
+                        },
+                    ): selector(
+                        {"entity": {"domain": "sensor", "device_class": "temperature"}}
+                    ),
+                    vol.Required(
+                        CONF_ADAPTER,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_ADAPTER, DEFAULT_ADAPTER
+                            )
+                        },
+                    ): selector(
+                        {
+                            "select": {
+                                "options": [
+                                    {"label": "Automatic", "value": Adapter.AUTO},
+                                    {
+                                        "label": "Local adapters only",
+                                        "value": Adapter.LOCAL,
+                                    },
+                                    {
+                                        "label": "/org/bluez/hci0",
+                                        "value": "/org/bluez/hci0",
+                                    },
+                                    {
+                                        "label": "/org/bluez/hci1",
+                                        "value": "/org/bluez/hci1",
+                                    },
+                                    {
+                                        "label": "/org/bluez/hci2",
+                                        "value": "/org/bluez/hci2",
+                                    },
+                                    {
+                                        "label": "/org/bluez/hci3",
+                                        "value": "/org/bluez/hci3",
+                                    },
+                                ],
+                                "custom_value": True,
+                            }
+                        }
+                    ),
+                    vol.Required(
+                        CONF_STAY_CONNECTED,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_STAY_CONNECTED, DEFAULT_STAY_CONNECTED
+                            )
+                        },
                     ): cv.boolean,
                 }
             ),

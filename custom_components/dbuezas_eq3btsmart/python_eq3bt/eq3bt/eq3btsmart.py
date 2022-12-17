@@ -68,9 +68,11 @@ class Thermostat:
 
     def __init__(
         self,
-        _mac: str,
+        mac: str,
         name: str,
-        _hass: HomeAssistant,
+        adapter: str,
+        stay_connected: bool,
+        hass: HomeAssistant,
     ):
         """Initialize the thermostat."""
 
@@ -85,7 +87,14 @@ class Thermostat:
         from .bleakconnection import BleakConnection
 
         self._on_update_callbacks = []
-        self._conn = BleakConnection(_mac, name, _hass, self.handle_notification)
+        self._conn = BleakConnection(
+            mac=mac,
+            name=name,
+            adapter=adapter,
+            stay_connected=stay_connected,
+            hass=hass,
+            callback=self.handle_notification,
+        )
 
     def register_update_callback(self, on_update):
         self._on_update_callbacks.append(on_update)
@@ -120,6 +129,7 @@ class Thermostat:
         if data[0] == PROP_INFO_RETURN and data[1] == 1:
             _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
             self._status = Status.parse(data)
+            assert self._status
             self._presets = self._status.presets
             _LOGGER.debug("[%s] Parsed status: %s", self.name, self._status)
 

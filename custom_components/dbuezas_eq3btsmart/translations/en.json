@@ -28,11 +28,14 @@
     "step": {
       "init": {
         "title": "EQ-3 Options",
-        "description": "Scan interval of 1 minute keeps the device connected and makes response instantaneous but it may affect battery life. Default is 5 minutes. The current temp approximation can only measure up to the target temp and down to 2 degrees below",
+        "description": "Increasing the scan interval to 10 minutes and disabling persistant connections may save battery. Set the bluetooth adapter to 'local' avoid using BTProxy, or pick manually if you have multiple available and want to distribute connection across them.",
         "data": {
-          "advanced": "Advanced mode. Adds extra debug entities",
-          "scan_interval": "Scan interval (minutes)",
-          "conf_aprox_current_temp": "Aproximate current temperature using valve state"
+          "scan_interval": "Scan interval in minutes",
+          "conf_current_temp_selector": "What to show as current temperature",
+          "conf_external_temp_sensor": "External temperature sensor",
+          "conf_adapter": "Bluetooth adapter",
+          "conf_stay_connected": "Keep bluetooth connection open",
+          "advanced": "Advanced mode."
         }
       }
     }

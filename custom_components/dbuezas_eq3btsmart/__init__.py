@@ -10,7 +10,13 @@ from homeassistant.core import HomeAssistant
 
 from . import config_flow
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
-from .const import DOMAIN
+from .const import (
+    CONF_ADAPTER,
+    DEFAULT_ADAPTER,
+    CONF_STAY_CONNECTED,
+    DEFAULT_STAY_CONNECTED,
+    DOMAIN,
+)
 
 PLATFORMS = [
     Platform.CLIMATE,
@@ -31,7 +37,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Store an instance of the "connecting" class that does the work of speaking
     # with your actual devices.
-    thermostat = Thermostat(entry.data["mac"], entry.data["name"], hass)
+
+    thermostat = Thermostat(
+        mac=entry.data["mac"],
+        name=entry.data["name"],
+        adapter=entry.options.get(CONF_ADAPTER, DEFAULT_ADAPTER),
+        stay_connected=entry.options.get(CONF_STAY_CONNECTED, DEFAULT_STAY_CONNECTED),
+        hass=hass,
+    )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = thermostat
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
