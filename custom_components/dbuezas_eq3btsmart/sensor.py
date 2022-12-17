@@ -1,4 +1,4 @@
-from .const import DOMAIN
+from .const import CONF_DEBUG_MODE, DOMAIN
 import asyncio
 import json
 import logging
@@ -22,17 +22,23 @@ async def async_setup_entry(
 ) -> None:
     """Add sensors for passed config_entry in HA."""
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
+    debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
 
     new_devices = [
         ValveSensor(eq3),
         AwayEndSensor(eq3),
-        RssiSensor(eq3),
         SerialNumberSensor(eq3),
         FirmwareVersionSensor(eq3),
-        MacSensor(eq3),
-        RetriesSensor(eq3),
     ]
     async_add_entities(new_devices)
+    if debug_mode:
+        new_devices = [
+            RssiSensor(eq3),
+            MacSensor(eq3),
+            RetriesSensor(eq3),
+            PathSensor(eq3),
+        ]
+        async_add_entities(new_devices)
 
 
 class Base(SensorEntity):
@@ -109,7 +115,6 @@ class FirmwareVersionSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_added_to_hass(self) -> None:
-        _LOGGER.debug("[%s] adding", self._thermostat.name)
         asyncio.get_event_loop().create_task(self.fetch_serial())
 
     async def fetch_serial(self):
@@ -156,3 +161,17 @@ class RetriesSensor(Base):
     @property
     def state(self):
         return self._thermostat._conn.retries
+
+
+class PathSensor(Base):
+    def __init__(self, _thermostat: Thermostat):
+        super().__init__(_thermostat)
+        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
+        self._attr_name = "Path"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def state(self):
+        if self._thermostat._conn._conn == None:
+            return None
+        return self._thermostat._conn._conn._backend._device_path

@@ -35,3 +35,30 @@ class Preset(str, Enum):
     AWAY = PRESET_AWAY
     LOCKED = "Locked"
     OPEN = "Open"
+
+
+CONF_ADAPTER = "conf_adapter"
+CONF_CURRENT_TEMP_SELECTOR = "conf_current_temp_selector"
+CONF_EXTERNAL_TEMP_SENSOR = "conf_external_temp_sensor"
+CONF_STAY_CONNECTED = "conf_stay_connected"
+CONF_DEBUG_MODE = "conf_debug_mode"
+
+DEFAULT_SCAN_INTERVAL = 1  # minutes
+
+
+class Adapter(str, Enum):
+    AUTO = "AUTO"
+    LOCAL = "LOCAL"
+
+
+class CurrentTemperatureSelector(str, Enum):
+    NOTHING = "NOTHING"
+    UI = "UI"
+    DEVICE = "DEVICE"
+    VALVE = "VALVE"
+    ENTITY = "ENTITY"
+
+
+DEFAULT_ADAPTER = Adapter.AUTO
+DEFAULT_CURRENT_TEMP_SELECTOR = CurrentTemperatureSelector.UI
+DEFAULT_STAY_CONNECTED = True

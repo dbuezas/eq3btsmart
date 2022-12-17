@@ -68,9 +68,11 @@ class Thermostat:
 
     def __init__(
         self,
-        _mac: str,
+        mac: str,
         name: str,
-        _hass: HomeAssistant,
+        adapter: str,
+        stay_connected: bool,
+        hass: HomeAssistant,
     ):
         """Initialize the thermostat."""
 
@@ -85,7 +87,14 @@ class Thermostat:
         from .bleakconnection import BleakConnection
 
         self._on_update_callbacks = []
-        self._conn = BleakConnection(_mac, name, _hass, self.handle_notification)
+        self._conn = BleakConnection(
+            mac=mac,
+            name=name,
+            adapter=adapter,
+            stay_connected=stay_connected,
+            hass=hass,
+            callback=self.handle_notification,
+        )
 
     def register_update_callback(self, on_update):
         self._on_update_callbacks.append(on_update)
@@ -120,6 +129,7 @@ class Thermostat:
         if data[0] == PROP_INFO_RETURN and data[1] == 1:
             _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
             self._status = Status.parse(data)
+            assert self._status
             self._presets = self._status.presets
             _LOGGER.debug("[%s] Parsed status: %s", self.name, self._status)
 
@@ -251,13 +261,13 @@ class Thermostat:
             return await self._async_set_mode(0x40 | int(temperature * 2))
 
     @property
-    def away(self):
+    def away(self) -> bool | None:
         """Returns True if the thermostat is in boost mode."""
-        return self._status and self._status.mode.AWAY
+        return self._status and self._status.mode.AWAY  # type: ignore
 
     @property
-    def away_end(self):
-        return self._status and self._status.away
+    def away_end(self) -> datetime | None:
+        return self._status and self._status.away  # type: ignore
 
     async def async_set_away(self, away: bool):
         """Sets away mode with default temperature."""
@@ -282,9 +292,9 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def boost(self):
+    def boost(self) -> bool | None:
         """Returns True if the thermostat is in boost mode."""
-        return self._status and self._status.mode.BOOST
+        return self._status and self._status.mode.BOOST  # type: ignore
 
     async def async_set_boost(self, boost):
         """Sets boost mode."""
@@ -293,15 +303,15 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def valve_state(self):
+    def valve_state(self) -> int | None:
         """Returns the valve state. Probably reported as percent open."""
-        return self._status and self._status.valve
+        return self._status and self._status.valve  # type: ignore
 
     @property
-    def window_open(self):
+    def window_open(self) -> bool | None:
         """Returns True if the thermostat reports a open window
         (detected by sudden drop of temperature)"""
-        return self._status and self._status.mode.WINDOW
+        return self._status and self._status.mode.WINDOW  # type: ignore
 
     async def async_window_open_config(self, temperature, duration):
         """Configures the window open behavior. The duration is specified in
@@ -335,19 +345,14 @@ class Thermostat:
         return self._presets and self._presets.window_open_time  # type: ignore
 
     @property
-    def unknown(self):
-        """Returns True if the thermostat is in unknown state."""
-        return self._status and self._status.mode.UNKNOWN
-
-    @property
-    def dst(self):
+    def dst(self) -> bool | None:
         """Returns True if the thermostat is in Daylight Saving Time."""
-        return self._status and self._status.mode.DST
+        return self._status and self._status.mode.DST  # type: ignore
 
     @property
-    def locked(self):
+    def locked(self) -> bool | None:
         """Returns True if the thermostat is locked."""
-        return self._status and self._status.mode.LOCKED
+        return self._status and self._status.mode.LOCKED  # type: ignore
 
     async def async_set_locked(self, lock):
         """Locks or unlocks the thermostat."""
@@ -356,9 +361,9 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def low_battery(self):
+    def low_battery(self) -> bool | None:
         """Returns True if the thermostat reports a low battery."""
-        return self._status and self._status.mode.LOW_BATTERY
+        return self._status and self._status.mode.LOW_BATTERY  # type: ignore
 
     async def async_temperature_presets(self, comfort, eco):
         """Set the thermostats preset temperatures comfort (sun) and

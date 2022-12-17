@@ -19,10 +19,6 @@ set_schedule:
           mode: list
           multiple: true
           options: 
-            - label: Saturday
-              value: sat
-            - label: Sunday
-              value: sun
             - label: Monday
               value: mon
             - label: Tuesday
@@ -33,6 +29,10 @@ set_schedule:
               value: thu
             - label: Friday
               value: fri
+            - label: Saturday
+              value: sat
+            - label: Sunday
+              value: sun
     target_temp_0:
       name: "Starting Temperature"
       description: "This target temperature will be set at midnight, when the day starts."

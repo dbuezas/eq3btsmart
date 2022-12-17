@@ -10,7 +10,13 @@ from homeassistant.core import HomeAssistant
 
 from . import config_flow
 from .python_eq3bt import eq3bt as eq3  # pylint: disable=import-error
-from .const import DOMAIN
+from .const import (
+    CONF_ADAPTER,
+    DEFAULT_ADAPTER,
+    CONF_STAY_CONNECTED,
+    DEFAULT_STAY_CONNECTED,
+    DOMAIN,
+)
 
 PLATFORMS = [
     Platform.CLIMATE,
@@ -31,12 +37,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Store an instance of the "connecting" class that does the work of speaking
     # with your actual devices.
-    thermostat = Thermostat(entry.data["mac"], entry.data["name"], hass)
+
+    thermostat = Thermostat(
+        mac=entry.data["mac"],
+        name=entry.data["name"],
+        adapter=entry.options.get(CONF_ADAPTER, DEFAULT_ADAPTER),
+        stay_connected=entry.options.get(CONF_STAY_CONNECTED, DEFAULT_STAY_CONNECTED),
+        hass=hass,
+    )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = thermostat
+
+    entry.async_on_unload(entry.add_update_listener(update_listener))
 
     # This creates each HA object for each platform your device requires.
     # It's done by calling the `async_setup_entry` function in each platform module.
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     return True
 
 
@@ -50,3 +66,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         thermostat = hass.data[DOMAIN].pop(entry.entry_id)
         thermostat.shutdown()
     return unload_ok
+
+
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update listener. Called when integration options are changed"""
+    await hass.config_entries.async_reload(entry.entry_id)
