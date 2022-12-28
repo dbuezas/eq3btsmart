@@ -11,9 +11,11 @@ A modernized temporary replacement for the native Home Assistant component.
 
 ## Installation
 
-### Option 1: [HACS](https://hacs.xyz/)
-
-1. `HACS` > `Integrations` > `⋮` > `Custom Repositories`
+### Option 1: [HACS](https://hacs.xyz/) Link
+1. Click [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=David+Buezas+&repository=https%3A%2F%2Fgithub.com%2Fdbuezas%2Feq3btsmart&category=Integration)
+2. Restart Home Assistant 
+### Option 2: [HACS](https://hacs.xyz/)
+1. Or `HACS` > `Integrations` > `⋮` > `Custom Repositories`
 2. `Repository`: paste the url of this repo
 3. `Category`: Integration
 4. Click `Add`
