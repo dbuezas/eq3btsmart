@@ -130,8 +130,8 @@ class BleakConnection:
                 d_and_a = list[0]
             self.rssi = d_and_a[1].rssi
             self._ble_device = d_and_a[0]
-            UnwrappedBleak = BleakClient.__bases__[0]
-            self._conn = UnwrappedBleak(
+            UnwrappedBleakClient = cast(type[BleakClient], BleakClient.__bases__[0])
+            self._conn = UnwrappedBleakClient(
                 self._ble_device,
                 disconnected_callback=lambda client: self._on_connection_event(),
                 dangerous_use_bleak_cache=True,
