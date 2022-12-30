@@ -196,12 +196,13 @@ class BleakConnection:
                 return
             except Exception as ex:
                 await self.throw_if_terminating()
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "[%s] Broken connection [retry %s/%s]: %s",
                     self._name,
                     self.retries,
                     retries,
                     ex,
+                    exc_info=True,
                 )
                 self._round_robin = self._round_robin + 1
                 if self.retries >= retries:
