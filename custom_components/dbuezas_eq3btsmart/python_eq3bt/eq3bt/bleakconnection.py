@@ -105,7 +105,7 @@ class BleakConnection:
             MANAGER = cast(BluetoothManager, self._hass.data[DATA_MANAGER])
 
             device_advertisement_datas = sorted(
-                MANAGER.async_get_discovered_devices_and_advertisement_data_by_address(
+                MANAGER.async_get_scanner_discovered_devices_and_advertisement_data_by_address(
                     address=self._mac, connectable=True
                 ),
                 key=lambda device_advertisement_data: device_advertisement_data[1].rssi
@@ -122,14 +122,14 @@ class BleakConnection:
                 list = [
                     x
                     for x in device_advertisement_datas
-                    if (d := x[0].details)
+                    if (d := x[1].details)
                     and d.get("props", {}).get("Adapter") == self._adapter
                 ]
                 if len(list) == 0:
                     raise Exception("Device not found")
                 d_and_a = list[0]
-            self.rssi = d_and_a[1].rssi
-            self._ble_device = d_and_a[0]
+            self.rssi = d_and_a[2].rssi
+            self._ble_device = d_and_a[1]
             UnwrappedBleakClient = cast(type[BleakClient], BleakClient.__bases__[0])
             self._conn = UnwrappedBleakClient(
                 self._ble_device,
