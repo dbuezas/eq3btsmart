@@ -105,10 +105,10 @@ class BleakConnection:
             MANAGER = cast(BluetoothManager, self._hass.data[DATA_MANAGER])
 
             device_advertisement_datas = sorted(
-                MANAGER.async_get_discovered_devices_and_advertisement_data_by_address(
+                MANAGER.async_get_scanner_discovered_devices_and_advertisement_data_by_address(
                     address=self._mac, connectable=True
                 ),
-                key=lambda device_advertisement_data: device_advertisement_data[1].rssi
+                key=lambda device_advertisement_data: device_advertisement_data[2].rssi
                 or NO_RSSI_VALUE,
                 reverse=True,
             )
@@ -122,16 +122,16 @@ class BleakConnection:
                 list = [
                     x
                     for x in device_advertisement_datas
-                    if (d := x[0].details)
+                    if (d := x[1].details)
                     and d.get("props", {}).get("Adapter") == self._adapter
                 ]
                 if len(list) == 0:
                     raise Exception("Device not found")
                 d_and_a = list[0]
-            self.rssi = d_and_a[1].rssi
-            self._ble_device = d_and_a[0]
-            UnwrappedBleak = BleakClient.__bases__[0]
-            self._conn = UnwrappedBleak(
+            self.rssi = d_and_a[2].rssi
+            self._ble_device = d_and_a[1]
+            UnwrappedBleakClient = cast(type[BleakClient], BleakClient.__bases__[0])
+            self._conn = UnwrappedBleakClient(
                 self._ble_device,
                 disconnected_callback=lambda client: self._on_connection_event(),
                 dangerous_use_bleak_cache=True,
@@ -187,21 +187,26 @@ class BleakConnection:
                 self._notify_event.clear()
                 if value != "ONLY CONNECT":
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                    await conn.write_gatt_char(PROP_WRITE_UUID, value)
-                    await asyncio.wait_for(self._notify_event.wait(), REQUEST_TIMEOUT)
-                    await conn.stop_notify(PROP_NTFY_UUID)
+                    try:
+                        await conn.write_gatt_char(PROP_WRITE_UUID, value)
+                        await asyncio.wait_for(
+                            self._notify_event.wait(), REQUEST_TIMEOUT
+                        )
+                    finally:
+                        await conn.stop_notify(PROP_NTFY_UUID)
                     if not self._stay_connected:
                         await conn.disconnect()
 
                 return
             except Exception as ex:
                 await self.throw_if_terminating()
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "[%s] Broken connection [retry %s/%s]: %s",
                     self._name,
                     self.retries,
                     retries,
                     ex,
+                    exc_info=True,
                 )
                 self._round_robin = self._round_robin + 1
                 if self.retries >= retries:
