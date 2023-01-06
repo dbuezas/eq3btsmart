@@ -108,7 +108,7 @@ class BleakConnection:
                 MANAGER.async_get_scanner_discovered_devices_and_advertisement_data_by_address(
                     address=self._mac, connectable=True
                 ),
-                key=lambda device_advertisement_data: device_advertisement_data[1].rssi
+                key=lambda device_advertisement_data: device_advertisement_data[2].rssi
                 or NO_RSSI_VALUE,
                 reverse=True,
             )
