@@ -186,9 +186,21 @@ class BleakConnection:
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
                 if value != "ONLY CONNECT":
-                    await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
+                    try:
+                        await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
+                    except:
+                        _LOGGER.debug(
+                            "[%s] start_notify failed. Writing gatt char anyway",
+                            self._name,
+                        )
                     try:
                         await conn.write_gatt_char(PROP_WRITE_UUID, value)
+                    except:
+                        _LOGGER.debug(
+                            "[%s] write_gatt_char failed. Waiting for response anyway",
+                            self._name,
+                        )
+                    try:
                         await asyncio.wait_for(
                             self._notify_event.wait(), REQUEST_TIMEOUT
                         )
