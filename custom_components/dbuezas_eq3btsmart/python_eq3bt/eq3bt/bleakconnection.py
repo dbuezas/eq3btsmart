@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, cast
 
 from bleak.backends.device import BLEDevice
 
-REQUEST_TIMEOUT = 1
+REQUEST_TIMEOUT = 30
 RETRY_BACK_OFF = 0.25
 RETRIES = 14
 
