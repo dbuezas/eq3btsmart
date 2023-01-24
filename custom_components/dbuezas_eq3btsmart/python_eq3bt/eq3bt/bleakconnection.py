@@ -168,7 +168,7 @@ class BleakConnection:
             )
 
     async def async_make_request(self, value, retries=RETRIES):
-        """Write a GATT Command without callback - not utf-8."""
+        """Write a GATT Command with callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
             try:
                 await self._async_make_request_try(value, retries)
@@ -188,7 +188,7 @@ class BleakConnection:
                 if value != "ONLY CONNECT":
                     await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
                     try:
-                        await conn.write_gatt_char(PROP_WRITE_UUID, value)
+                        await conn.write_gatt_char(PROP_WRITE_UUID, value, response=True)
                         await asyncio.wait_for(
                             self._notify_event.wait(), REQUEST_TIMEOUT
                         )
