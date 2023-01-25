@@ -33,6 +33,7 @@ from homeassistant.components.climate.const import (
     ATTR_HVAC_MODE,
     ClimateEntityFeature,
     HVACAction,
+    PRESET_NONE,
 )
 from homeassistant.components.climate import HVACMode
 
@@ -261,11 +262,13 @@ class EQ3Climate(ClimateEntity):
             return "Low Battery"
         if self._thermostat.away:
             return Preset.AWAY
-        if self._thermostat.locked:
-            return Preset.LOCKED
+        if self.target_temperature == self._thermostat.eco_temperature:
+            return Preset.ECO
+        if self.target_temperature == self._thermostat.comfort_temperature:
+            return Preset.COMFORT
         if self._thermostat.mode == Mode.On:
             return Preset.OPEN
-        return Preset.NONE
+        return PRESET_NONE
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new preset mode."""
@@ -274,23 +277,27 @@ class EQ3Climate(ClimateEntity):
                 await self._thermostat.async_set_boost(True)
             case Preset.AWAY:
                 await self._thermostat.async_set_away(True)
-            case Preset.LOCKED:
-                await self._thermostat.async_set_locked(True)
             case Preset.ECO:
-                await self._thermostat.async_activate_eco()
-            case Preset.COMFORT:
-                await self._thermostat.async_activate_comfort()
-            case Preset.OPEN:
-                await self._thermostat.async_set_mode(Mode.On)
-            case Preset.NONE:
-                if self._thermostat.locked:
-                    await self._thermostat.async_set_locked(False)
                 if self._thermostat.boost:
                     await self._thermostat.async_set_boost(False)
                 if self._thermostat.away:
                     await self._thermostat.async_set_away(False)
-                if self._thermostat.mode == Mode.On:
-                    await self._thermostat.async_activate_comfort()
+
+                await self._thermostat.async_activate_eco()
+            case Preset.COMFORT:
+                if self._thermostat.boost:
+                    await self._thermostat.async_set_boost(False)
+                if self._thermostat.away:
+                    await self._thermostat.async_set_away(False)
+
+                await self._thermostat.async_activate_comfort()
+            case Preset.OPEN:
+                if self._thermostat.boost:
+                    await self._thermostat.async_set_boost(False)
+                if self._thermostat.away:
+                    await self._thermostat.async_set_away(False)
+
+                await self._thermostat.async_set_mode(Mode.On)
 
         # by now, the target temperature should have been (maybe set) and fetched
         self._target_temperature_to_set = self.target_temperature
