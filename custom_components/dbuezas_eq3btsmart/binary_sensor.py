@@ -116,7 +116,7 @@ class WindowOpenSensor(Base):
         self._attr_device_class = "window"
 
     @property
-    def state(self):
+    def is_on(self):
         return self._thermostat.window_open
 
 
