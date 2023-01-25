@@ -21,7 +21,6 @@ async def async_setup_entry(
     debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
 
     new_devices = [
-        LockedSwitch(eq3),
         AwaySwitch(eq3),
         BoostSwitch(eq3),
     ]
@@ -46,24 +45,6 @@ class Base(SwitchEntity):
         return DeviceInfo(
             identifiers={(DOMAIN, self._thermostat.mac)},
         )
-
-
-class LockedSwitch(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._attr_name = "Locked"
-        self._attr_icon = "mdi:lock"
-
-    async def async_turn_on(self):
-        await self._thermostat.async_set_locked(True)
-
-    async def async_turn_off(self):
-        await self._thermostat.async_set_locked(False)
-
-    @property
-    def is_on(self):
-        return self._thermostat.locked
 
 
 class AwaySwitch(Base):
