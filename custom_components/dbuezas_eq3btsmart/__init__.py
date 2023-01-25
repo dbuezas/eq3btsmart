@@ -21,6 +21,7 @@ from .const import (
 PLATFORMS = [
     Platform.CLIMATE,
     Platform.BUTTON,
+    Platform.LOCK,
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.BINARY_SENSOR,
