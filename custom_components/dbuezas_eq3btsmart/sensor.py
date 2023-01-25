@@ -63,6 +63,7 @@ class ValveSensor(Base):
         super().__init__(_thermostat)
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Valve"
+        self._attr_icon = "mdi:pipe-valve"
         self._attr_native_unit_of_measurement = "%"
 
     @property
