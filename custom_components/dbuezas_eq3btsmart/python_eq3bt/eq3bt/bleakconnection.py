@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING, cast
 
 from bleak.backends.device import BLEDevice
 
-REQUEST_TIMEOUT = 1
-RETRY_BACK_OFF = 0.25
+REQUEST_TIMEOUT = 5
+RETRY_BACK_OFF_FACTOR = 0.25
 RETRIES = 14
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
@@ -211,4 +211,4 @@ class BleakConnection:
                 self._round_robin = self._round_robin + 1
                 if self.retries >= retries:
                     raise ex
-                await asyncio.sleep(RETRY_BACK_OFF)
+                await asyncio.sleep(RETRY_BACK_OFF_FACTOR * retries)
