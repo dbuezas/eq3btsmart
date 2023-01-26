@@ -211,4 +211,4 @@ class BleakConnection:
                 self._round_robin = self._round_robin + 1
                 if self.retries >= retries:
                     raise ex
-                await asyncio.sleep(RETRY_BACK_OFF_FACTOR * retries)
+                await asyncio.sleep(RETRY_BACK_OFF_FACTOR * self.retries)
