@@ -5,16 +5,17 @@
 
 A modernized temporary replacement for the native Home Assistant component.
 
-
-
 [Home Assistant Forum Post](https://community.home-assistant.io/t/eq3-bt-smart-thermostat-working-with-v-2022-7/476620)
 
 ## Installation
 
 ### Option 1: [HACS](https://hacs.xyz/) Link
+
 1. Click [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=David+Buezas+&repository=https%3A%2F%2Fgithub.com%2Fdbuezas%2Feq3btsmart&category=Integration)
-2. Restart Home Assistant 
+2. Restart Home Assistant
+
 ### Option 2: [HACS](https://hacs.xyz/)
+
 1. Or `HACS` > `Integrations` > `⋮` > `Custom Repositories`
 2. `Repository`: paste the url of this repo
 3. `Category`: Integration
@@ -31,8 +32,9 @@ A modernized temporary replacement for the native Home Assistant component.
 2. Restart _Home Assistant_
 
 ## Adding devices
+
 1. Go to `Settings` > `Integrations`
-2. Either wait for automatic discovery, 
+2. Either wait for automatic discovery,
 
 <img width="290" alt="image" src="https://user-images.githubusercontent.com/777196/204042747-633106fb-f63c-439a-9dea-802df341e45d.png">​
 
@@ -66,15 +68,14 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 
 ### Device options
 
-Most notably, you can select a specific bluetooth adapter, or limit to local ones. This allows to coexist with BTProxys and to stay connected with more than 4 thermostats simultaneously using multiple bluetooth dongles.
+Most notably, you can select a specific bluetooth adapter, or limit to local ones.
 
 <img width="420" alt="image" src="https://user-images.githubusercontent.com/777196/208250665-9cead674-6ea3-4260-aa3f-a3237196934b.png">
-
 
 ### Differences with the original component:
 
 - [x] It works in HA version > 2022.7
-- ~~[ ] Supports ESP32 Bluetooth proxies~~ (the thermostats will be detected, but no communication follows. 
+- [x] Support for BTProxy thanks to @ignisf (make sure you configure `active: true` in the BTProxy).
 - [x] Supports auto discovery
 - [x] Supports adding via config flow (UI)
 - [x] Fixes setting operation mode
@@ -92,9 +93,8 @@ Most notably, you can select a specific bluetooth adapter, or limit to local one
 - [x] All features of the thermostat are exposed as entities
 - [x] Bluetooth adapter, scan interval, etc are configurable.
 
-### Credits
+### Previous Art
 
 This is heavily based on https://github.com/rytilahti/python-eq3bt and https://github.com/home-assistant/core/tree/dev/homeassistant/components/eq3btsmart and it should ideally be two PRs instead.
 Unfortunately, the changes go too deep and remove support for the CLI and other backends.
 Therefore, here's a self contained custom component instead.
-
