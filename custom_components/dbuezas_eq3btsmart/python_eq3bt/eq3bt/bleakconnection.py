@@ -12,8 +12,6 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
 from ...const import Adapter
 from homeassistant.components import bluetooth
-from homeassistant.components.bluetooth.const import DATA_MANAGER
-from homeassistant.components.bluetooth.manager import BluetoothManager
 from homeassistant.core import HomeAssistant, callback
 
 from . import BackendException
@@ -102,13 +100,13 @@ class BleakConnection:
                 use_services_cache=True,
             )
         else:
-            MANAGER = cast(BluetoothManager, self._hass.data[DATA_MANAGER])
-
             device_advertisement_datas = sorted(
-                MANAGER.async_get_scanner_discovered_devices_and_advertisement_data_by_address(
-                    address=self._mac, connectable=True
+                bluetooth.async_scanner_devices_by_address(
+                    hass=self._hass,
+                    address=self._mac,
+                    connectable=True
                 ),
-                key=lambda device_advertisement_data: device_advertisement_data[2].rssi
+                key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi
                 or NO_RSSI_VALUE,
                 reverse=True,
             )
@@ -122,14 +120,14 @@ class BleakConnection:
                 list = [
                     x
                     for x in device_advertisement_datas
-                    if (d := x[1].details)
+                    if (d := x.ble_device.details)
                     and d.get("props", {}).get("Adapter") == self._adapter
                 ]
                 if len(list) == 0:
                     raise Exception("Device not found")
                 d_and_a = list[0]
-            self.rssi = d_and_a[2].rssi
-            self._ble_device = d_and_a[1]
+            self.rssi = d_and_a.advertisement.rssi
+            self._ble_device = d_and_a.ble_device
             UnwrappedBleakClient = cast(type[BleakClient], BleakClient.__bases__[0])
             self._conn = UnwrappedBleakClient(
                 self._ble_device,
