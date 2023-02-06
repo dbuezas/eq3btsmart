@@ -12,8 +12,6 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
 from ...const import Adapter
 from homeassistant.components import bluetooth
-from homeassistant.components.bluetooth.const import DATA_MANAGER
-from homeassistant.components.bluetooth.manager import BluetoothManager
 from homeassistant.core import HomeAssistant, callback
 
 from . import BackendException
@@ -102,11 +100,11 @@ class BleakConnection:
                 use_services_cache=True,
             )
         else:
-            MANAGER = cast(BluetoothManager, self._hass.data[DATA_MANAGER])
-
             device_advertisement_datas = sorted(
-                MANAGER.async_scanner_devices_by_address(
-                    address=self._mac, connectable=True
+                bluetooth.async_scanner_devices_by_address(
+                    hass=self._hass,
+                    address=self._mac,
+                    connectable=True
                 ),
                 key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi
                 or NO_RSSI_VALUE,
