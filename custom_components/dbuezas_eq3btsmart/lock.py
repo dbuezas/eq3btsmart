@@ -49,10 +49,10 @@ class LockedSwitch(Base):
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Locked"
 
-    async def async_lock(self):
+    async def async_lock(self, **kwargs):
         await self._thermostat.async_set_locked(True)
 
-    async def async_unlock(self):
+    async def async_unlock(self, **kwargs):
         await self._thermostat.async_set_locked(False)
 
     @property
