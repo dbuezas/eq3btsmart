@@ -81,7 +81,7 @@ class Thermostat:
         self._presets = None
         self._device_data = None
         self._schedule = {}
-        self.default_away_days: float = 30
+        self.default_away_hours: float = 30 * 24
         self.default_away_temp: float = 12
 
         from .bleakconnection import BleakConnection
@@ -275,7 +275,12 @@ class Thermostat:
             _LOGGER.debug("[%s] Disabling away, going to auto mode.", self.name)
             return await self._async_set_mode(0x00)
 
-        away_end = datetime.now() + timedelta(days=self.default_away_days)
+        away_end = datetime.now() + timedelta(hours=self.default_away_hours)
+
+        # rounding
+        away_end = away_end + timedelta(minutes=15)
+        away_end = away_end - timedelta(minutes=away_end.minute % 30)
+
         temperature = self.default_away_temp
         _LOGGER.debug(
             "[%s] Setting away until %s, temp %s", self.name, away_end, temperature

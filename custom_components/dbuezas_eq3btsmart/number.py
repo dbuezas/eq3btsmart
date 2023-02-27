@@ -33,7 +33,7 @@ async def async_setup_entry(
         OffsetTemperature(eq3),
         WindowOpenTemperature(eq3),
         WindowOpenTimeout(eq3),
-        AwayForDays(eq3),
+        AwayForHours(eq3),
         AwayTemperature(eq3),
     ]
     async_add_entities(new_devices)
@@ -162,16 +162,16 @@ class WindowOpenTimeout(NumberEntity):
         )
 
 
-class AwayForDays(RestoreNumber):
+class AwayForHours(RestoreNumber):
     def __init__(self, _thermostat: Thermostat):
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.BOX
-        self._attr_name = "Away Days"
-        self._attr_native_min_value = 0
-        self._attr_native_max_value = 365
+        self._attr_name = "Away Hours"
+        self._attr_native_min_value = 0.5
+        self._attr_native_max_value = 1000000
         self._attr_native_step = 0.5
-        self._attr_native_unit_of_measurement = "days"
+        self._attr_native_unit_of_measurement = "hours"
 
     @property
     def unique_id(self) -> str:
@@ -189,14 +189,14 @@ class AwayForDays(RestoreNumber):
 
         data = await self.async_get_last_number_data()
         if data and data.native_value != None:
-            self._thermostat.default_away_days = data.native_value
+            self._thermostat.default_away_hours = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
-        self._thermostat.default_away_days = value
+        self._thermostat.default_away_hours = value
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.default_away_days
+        return self._thermostat.default_away_hours
 
 
 class AwayTemperature(Base, RestoreNumber):
