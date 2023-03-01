@@ -66,6 +66,17 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 
 <img width="385" alt="image" src="https://user-images.githubusercontent.com/777196/204042508-2d95e613-76f3-4b14-b6e4-944de487a9ed.png">
 
+### Setting Vacation Mode / Away Mode
+
+There is a service to set up Away mode (vacation) with an end date/time, and target temperature.
+
+<img width="445" alt="image" src="https://user-images.githubusercontent.com/777196/222268603-a312f691-2174-43c0-a14e-0790f19db929.png">
+
+To easily set all thermostats to away you can combine it with an input timedate helper and a script and add them to lovelace like this:
+
+<img width="445" alt="image" src="https://user-images.githubusercontent.com/777196/222269450-fef3a62c-70f0-4184-92ac-c1dc939753be.png">
+
+
 ### Device options
 
 Most notably, you can select a specific bluetooth adapter, or limit to local ones.
