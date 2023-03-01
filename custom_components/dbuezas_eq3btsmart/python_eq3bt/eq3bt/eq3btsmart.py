@@ -269,6 +269,21 @@ class Thermostat:
     def away_end(self) -> datetime | None:
         return self._status and self._status.away  # type: ignore
 
+    async def async_set_away_until(self, away_end: datetime, temperature: float):
+        """Sets away mode with default temperature."""
+
+        # rounding
+        away_end = away_end + timedelta(minutes=15)
+        away_end = away_end - timedelta(minutes=away_end.minute % 30)
+
+        _LOGGER.debug(
+            "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
+        )
+        adapter = AwayDataAdapter(Byte[4])  # type: ignore
+        packed = adapter.build(away_end)
+
+        await self._async_set_mode(0x80 | int(temperature * 2), packed)
+
     async def async_set_away(self, away: bool):
         """Sets away mode with default temperature."""
         if not away:
@@ -277,18 +292,7 @@ class Thermostat:
 
         away_end = datetime.now() + timedelta(hours=self.default_away_hours)
 
-        # rounding
-        away_end = away_end + timedelta(minutes=15)
-        away_end = away_end - timedelta(minutes=away_end.minute % 30)
-
-        temperature = self.default_away_temp
-        _LOGGER.debug(
-            "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
-        )
-        adapter = AwayDataAdapter(Byte[4])  # type: ignore
-        packed = adapter.build(away_end)
-
-        await self._async_set_mode(0x80 | int(temperature * 2), packed)
+        await self.async_set_away_until(away_end, self.default_away_temp)
 
     async def _async_set_mode(self, mode, payload=None):
         value = struct.pack("BB", PROP_MODE_WRITE, mode)

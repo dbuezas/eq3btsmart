@@ -1,3 +1,34 @@
+set_away_until:
+  name: Set Away until
+  description: Sets the thermostat as away until the given date and time
+  target:
+    description: Select the devices or areas to configure.
+    entity:
+      integration: none
+    device:
+      integration: dbuezas_eq3btsmart
+      model: CC-RT-BLE-EQ
+      description: Select the thermostats to update
+  fields:
+    away_until:
+      name: Away until
+      description: The thermostat will be in Away mode until this date/time 
+      required: true
+      selector:
+        datetime:
+    temperature:
+      name: "Target temperature while away"
+      description: "This target temperature will be set immediately. After the set date, the temperature will be restored to what it was before."
+      required: true
+      example: 12
+      default: 12
+      selector:
+        number:
+          min: 4.5
+          max: 30
+          step: 0.5
+          unit_of_measurement: °C
+
 set_schedule:
   name: Set EQ3 Schedule
   description: Sets the internal schedule

@@ -1,15 +1,27 @@
 from .const import CONF_DEBUG_MODE, DOMAIN
 import logging
 
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
-from .python_eq3bt.eq3bt.eq3btsmart import Mode, Thermostat
+from .python_eq3bt.eq3bt.eq3btsmart import (
+    EQ3BT_MAX_TEMP,
+    EQ3BT_OFF_TEMP,
+    Thermostat,
+)
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
+
+SET_AWAY_UNTIL_SCHEMA = {
+    vol.Required("away_until"): cv.datetime,
+    vol.Required("temperature"): vol.Range(min=EQ3BT_OFF_TEMP, max=EQ3BT_MAX_TEMP),
+}
 
 
 async def async_setup_entry(
@@ -29,6 +41,14 @@ async def async_setup_entry(
         new_devices = [ConnectionSwitch(eq3)]
         async_add_entities(new_devices)
 
+    platform = entity_platform.async_get_current_platform()
+
+    platform.async_register_entity_service(
+        "set_away_until",
+        cv.make_entity_service_schema(SET_AWAY_UNTIL_SCHEMA),
+        "set_away_until",
+    )
+
 
 class Base(SwitchEntity):
     def __init__(self, _thermostat: Thermostat):
@@ -45,6 +65,9 @@ class Base(SwitchEntity):
         return DeviceInfo(
             identifiers={(DOMAIN, self._thermostat.mac)},
         )
+
+    async def set_away_until(self, away_until, temperature: float) -> None:
+        pass
 
 
 class AwaySwitch(Base):
@@ -63,6 +86,9 @@ class AwaySwitch(Base):
     @property
     def is_on(self):
         return self._thermostat.away
+
+    async def set_away_until(self, away_until, temperature: float) -> None:
+        await self._thermostat.async_set_away_until(away_until, temperature)
 
 
 class BoostSwitch(Base):
