@@ -3,8 +3,6 @@ set_away_until:
   description: Sets the thermostat as away until the given date and time
   target:
     description: Select the devices or areas to configure.
-    entity:
-      integration: none
     device:
       integration: dbuezas_eq3btsmart
       model: CC-RT-BLE-EQ
@@ -34,8 +32,6 @@ set_schedule:
   description: Sets the internal schedule
   target:
     description: Select the devices or areas to configure.
-    entity:
-      integration: none
     device:
       integration: dbuezas_eq3btsmart
       model: CC-RT-BLE-EQ
