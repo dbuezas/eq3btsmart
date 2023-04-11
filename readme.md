@@ -56,7 +56,8 @@ See here https://github.com/rytilahti/python-eq3bt#pairing
 
 ### Setting schedules
 
-The internal schedules of the Auto mode can be set via a service
+The internal schedules of the Auto mode can be set via a service.
+Use *Devices* or *Areas* as target, not entities.
 
 <img width="445" alt="image" src="https://user-images.githubusercontent.com/777196/204042126-b0e434cb-eceb-487b-bf0c-7ce178904622.png">
 
@@ -69,6 +70,9 @@ There is a button to fetch the schedules from the thermostats. These are shown a
 ### Setting Vacation Mode / Away Mode
 
 There is a service to set up Away mode (vacation) with an end date/time, and target temperature.
+
+Use *Devices* or *Areas* as target, not entities.
+
 
 <img width="445" alt="image" src="https://user-images.githubusercontent.com/777196/222268603-a312f691-2174-43c0-a14e-0790f19db929.png">
 
