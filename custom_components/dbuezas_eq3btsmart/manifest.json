@@ -11,5 +11,5 @@
   "version": "6.1.2",
   "config_flow": true,
   "quality_scale": "platinum",
-  "bluetooth": [{ "local_name": "CC-RT-BLE" }]
+  "bluetooth": [{ "local_name": "CC-RT-BLE" }, { "local_name": "CC-RT-M-BLE" }]
 }
