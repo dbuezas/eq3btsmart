@@ -75,7 +75,7 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "title_placeholders": {
                     CONF_NAME: name,
                     CONF_MAC: discovery_info.address,
-                    "rssi": discovery_info.device.rssi,
+                    "rssi": discovery_info.rssi,
                 }
             }
         )
@@ -99,7 +99,7 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 description_placeholders={
                     CONF_NAME: name,
                     CONF_MAC: self.discovery_info.address,
-                    "rssi": str(self.discovery_info.device.rssi),
+                    "rssi": str(self.discovery_info.rssi),
                 },
             )
         await self.async_set_unique_id(format_mac(self.discovery_info.address))
