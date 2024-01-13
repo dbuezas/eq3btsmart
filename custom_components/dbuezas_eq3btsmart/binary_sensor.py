@@ -86,6 +86,9 @@ class ConnectedSensor(Base):
             return None
         if (details := device.details) is None:
             return None
+        if "props" not in details:
+            return None
+
         return json.loads(json.dumps(details["props"], default=json_serial))
 
     @property
