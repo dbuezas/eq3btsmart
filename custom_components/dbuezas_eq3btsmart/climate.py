@@ -32,13 +32,16 @@ from homeassistant.helpers.event import async_call_later
 from .const import (
     CONF_CURRENT_TEMP_SELECTOR,
     CONF_EXTERNAL_TEMP_SENSOR,
+    CONF_TARGET_TEMP_SELECTOR,
     DEFAULT_CURRENT_TEMP_SELECTOR,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TARGET_TEMP_SELECTOR,
     DOMAIN,
     EQ_TO_HA_HVAC,
     HA_TO_EQ_HVAC,
     CurrentTemperatureSelector,
     Preset,
+    TargetTemperatureSelector,
 )
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
@@ -68,6 +71,9 @@ async def async_setup_entry(
             conf_current_temp_selector=config_entry.options.get(
                 CONF_CURRENT_TEMP_SELECTOR, DEFAULT_CURRENT_TEMP_SELECTOR
             ),
+            conf_target_temp_selector=config_entry.options.get(
+                CONF_TARGET_TEMP_SELECTOR, DEFAULT_TARGET_TEMP_SELECTOR
+            ),
             conf_external_temp_sensor=config_entry.options.get(
                 CONF_EXTERNAL_TEMP_SENSOR, ""
             ),
@@ -89,6 +95,7 @@ class EQ3Climate(ClimateEntity):
         thermostat: Thermostat,
         scan_interval: float,
         conf_current_temp_selector: CurrentTemperatureSelector,
+        conf_target_temp_selector: TargetTemperatureSelector,
         conf_external_temp_sensor: str,
     ):
         """Initialize the thermostat."""
@@ -96,6 +103,7 @@ class EQ3Climate(ClimateEntity):
         self._thermostat.register_update_callback(self._on_updated)
         self._scan_interval = scan_interval
         self._conf_current_temp_selector = conf_current_temp_selector
+        self._conf_target_temp_selector = conf_target_temp_selector
         self._conf_external_temp_sensor = conf_external_temp_sensor
         self._target_temperature_to_set = None
         self._is_setting_temperature = False
@@ -191,7 +199,11 @@ class EQ3Climate(ClimateEntity):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._target_temperature_to_set
+        match self._conf_target_temp_selector:
+            case TargetTemperatureSelector.TARGET:
+                return self._target_temperature_to_set
+            case TargetTemperatureSelector.LAST_REPORTED:
+                return self._thermostat.target_temperature
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
