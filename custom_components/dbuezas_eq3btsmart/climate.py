@@ -183,7 +183,7 @@ class EQ3Climate(ClimateEntity):
             if self._thermostat.valve_state is None:
                 return None
             valve: int = self._thermostat.valve_state
-            return (1 - valve / 100) * 2 + self.target_temperature - 2
+            return (1 - valve / 100) * 2 + self._thermostat.target_temperature - 2
         if self._conf_current_temp_selector == CurrentTemperatureSelector.UI:
             return self._target_temperature_to_set
         if self._conf_current_temp_selector == CurrentTemperatureSelector.DEVICE:
@@ -262,7 +262,7 @@ class EQ3Climate(ClimateEntity):
             self._target_temperature_to_set = EQ3BT_OFF_TEMP
             self._is_setting_temperature = True
         else:  # auto or manual/heat
-            self._target_temperature_to_set = self.target_temperature
+            self._target_temperature_to_set = self._thermostat.target_temperature
             self._is_setting_temperature = False
         self.async_schedule_update_ha_state()
 
@@ -281,9 +281,9 @@ class EQ3Climate(ClimateEntity):
             return "Low Battery"
         if self._thermostat.away:
             return Preset.AWAY
-        if self.target_temperature == self._thermostat.eco_temperature:
+        if self._thermostat.target_temperature == self._thermostat.eco_temperature:
             return Preset.ECO
-        if self.target_temperature == self._thermostat.comfort_temperature:
+        if self._thermostat.target_temperature == self._thermostat.comfort_temperature:
             return Preset.COMFORT
         if self._thermostat.mode == Mode.On:
             return Preset.OPEN
@@ -319,7 +319,7 @@ class EQ3Climate(ClimateEntity):
                 await self._thermostat.async_set_mode(Mode.On)
 
         # by now, the target temperature should have been (maybe set) and fetched
-        self._target_temperature_to_set = self.target_temperature
+        self._target_temperature_to_set = self._thermostat.target_temperature
         self._is_setting_temperature = False
 
     @property
