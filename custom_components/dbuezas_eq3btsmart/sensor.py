@@ -1,16 +1,17 @@
-from .const import CONF_DEBUG_MODE, DOMAIN
 import asyncio
 import json
 import logging
 
-from homeassistant.helpers.device_registry import format_mac
-from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from .const import CONF_DEBUG_MODE, DOMAIN
+from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,7 +120,12 @@ class FirmwareVersionSensor(Base):
         asyncio.get_event_loop().create_task(self.fetch_serial())
 
     async def fetch_serial(self):
-        await self._thermostat.async_query_id()
+        try:
+            await self._thermostat.async_query_id()
+        except Exception as e:
+            _LOGGER.error(f"[{self._thermostat.name}] Error fetching serial number: {e}")
+            return
+
         device_registry = dr.async_get(self.hass)
         device = device_registry.async_get_device(
             identifiers={(DOMAIN, self._thermostat.mac)},
