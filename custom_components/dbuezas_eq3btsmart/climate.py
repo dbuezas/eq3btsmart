@@ -27,7 +27,7 @@ from homeassistant.const import (
     CONF_MAC,
     CONF_SCAN_INTERVAL,
     PRECISION_TENTHS,
-    TEMP_CELSIUS,
+    UnitOfTemperature,
 )
 from homeassistant.components.climate.const import (
     ATTR_HVAC_MODE,
@@ -109,7 +109,7 @@ class EQ3Climate(ClimateEntity):
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         )
-        self._attr_temperature_unit = TEMP_CELSIUS
+        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
         self._attr_precision = PRECISION_TENTHS
         self._attr_hvac_modes = list(HA_TO_EQ_HVAC)
         self._attr_min_temp = EQ3BT_OFF_TEMP
