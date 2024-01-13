@@ -217,11 +217,19 @@ class EQ3Climate(ClimateEntity):
         temperature = round(temperature * 2) / 2  # increments of 0.5
         temperature = min(temperature, self.max_temp)
         temperature = max(temperature, self.min_temp)
+
+        previous_temperature = self._target_temperature_to_set
         self._is_setting_temperature = True
         self._target_temperature_to_set = temperature
         # show current temp now
         self.async_schedule_update_ha_state()
-        await self.async_set_temperature_now()
+
+        try:
+            await self.async_set_temperature_now()
+        except Exception:
+            _LOGGER.error(f"Failed setting temperature for {self._thermostat.name} to {temperature}, restoring previous temperature {previous_temperature}")
+            self._target_temperature_to_set = previous_temperature
+            self.async_schedule_update_ha_state()
 
     async def async_set_temperature_now(self):
         await self._thermostat.async_set_target_temperature(
