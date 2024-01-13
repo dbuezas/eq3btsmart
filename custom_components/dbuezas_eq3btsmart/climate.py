@@ -141,11 +141,11 @@ class EQ3Climate(ClimateEntity):
     @callback
     def _on_updated(self):
         self._is_available = True
-        if self._target_temperature_to_set == self.target_temperature:
+        if self._target_temperature_to_set == self._thermostat.target_temperature:
             self._is_setting_temperature = False
         if not self._is_setting_temperature:
             # temperature may have been updated from the thermostat
-            self._target_temperature_to_set = self.target_temperature
+            self._target_temperature_to_set = self._thermostat.target_temperature
         if self.entity_id is None:
             _LOGGER.warn(
                 "[%s] Updated but the entity is not loaded", self._thermostat.name
@@ -180,7 +180,7 @@ class EQ3Climate(ClimateEntity):
         if self._conf_current_temp_selector == CurrentTemperatureSelector.UI:
             return self._target_temperature_to_set
         if self._conf_current_temp_selector == CurrentTemperatureSelector.DEVICE:
-            return self.target_temperature
+            return self._thermostat.target_temperature
         if self._conf_current_temp_selector == CurrentTemperatureSelector.ENTITY:
             state = self.hass.states.get(self._conf_external_temp_sensor)
             if state is not None:
@@ -192,7 +192,7 @@ class EQ3Climate(ClimateEntity):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._thermostat.target_temperature
+        return self._target_temperature_to_set
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
