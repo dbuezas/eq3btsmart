@@ -1,27 +1,20 @@
 """Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
 
 from __future__ import annotations
-from datetime import timedelta
-import logging
-import asyncio
 
-from .const import (
-    CONF_CURRENT_TEMP_SELECTOR,
-    CONF_EXTERNAL_TEMP_SENSOR,
-    DEFAULT_CURRENT_TEMP_SELECTOR,
-    DEFAULT_SCAN_INTERVAL,
-    EQ_TO_HA_HVAC,
-    HA_TO_EQ_HVAC,
-    Preset,
-    DOMAIN,
-    CurrentTemperatureSelector,
+import asyncio
+import logging
+from datetime import timedelta
+
+import voluptuous as vol
+from homeassistant.components.climate import ClimateEntity, HVACMode
+from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
+    PRESET_NONE,
+    ClimateEntityFeature,
+    HVACAction,
 )
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
-from homeassistant.helpers.event import async_call_later
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_MAC,
@@ -29,24 +22,30 @@ from homeassistant.const import (
     PRECISION_TENTHS,
     TEMP_CELSIUS,
 )
-from homeassistant.components.climate.const import (
-    ATTR_HVAC_MODE,
-    ClimateEntityFeature,
-    HVACAction,
-    PRESET_NONE,
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, format_mac
+from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_call_later
+
+from .const import (
+    CONF_CURRENT_TEMP_SELECTOR,
+    CONF_EXTERNAL_TEMP_SENSOR,
+    DEFAULT_CURRENT_TEMP_SELECTOR,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    EQ_TO_HA_HVAC,
+    HA_TO_EQ_HVAC,
+    CurrentTemperatureSelector,
+    Preset,
 )
-from homeassistant.components.climate import HVACMode
-
-from homeassistant.components.climate import ClimateEntity
-import voluptuous as vol
-
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
     Mode,
     Thermostat,
 )
-from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 DEVICE_SCHEMA = vol.Schema({vol.Required(CONF_MAC): cv.string})
@@ -226,8 +225,8 @@ class EQ3Climate(ClimateEntity):
 
         try:
             await self.async_set_temperature_now()
-        except Exception:
-            _LOGGER.error(f"Failed setting temperature for {self._thermostat.name} to {temperature}, restoring previous temperature {previous_temperature}")
+        except Exception as ex:
+            _LOGGER.error(f"[{self._thermostat.name}] Failed setting temperature: {ex}")
             self._target_temperature_to_set = previous_temperature
             self.async_schedule_update_ha_state()
 
