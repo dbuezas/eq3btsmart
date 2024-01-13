@@ -175,4 +175,8 @@ class PathSensor(Base):
     def state(self):
         if self._thermostat._conn._conn == None:
             return None
+
+        if not hasattr(self._thermostat._conn._conn._backend, "_device_path"):
+            return None
+
         return self._thermostat._conn._conn._backend._device_path
