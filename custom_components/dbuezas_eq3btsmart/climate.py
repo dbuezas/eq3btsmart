@@ -1,27 +1,20 @@
 """Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
 
 from __future__ import annotations
-from datetime import timedelta
-import logging
-import asyncio
 
-from .const import (
-    CONF_CURRENT_TEMP_SELECTOR,
-    CONF_EXTERNAL_TEMP_SENSOR,
-    DEFAULT_CURRENT_TEMP_SELECTOR,
-    DEFAULT_SCAN_INTERVAL,
-    EQ_TO_HA_HVAC,
-    HA_TO_EQ_HVAC,
-    Preset,
-    DOMAIN,
-    CurrentTemperatureSelector,
+import asyncio
+import logging
+from datetime import timedelta
+
+import voluptuous as vol
+from homeassistant.components.climate import ClimateEntity, HVACMode
+from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
+    PRESET_NONE,
+    ClimateEntityFeature,
+    HVACAction,
 )
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.device_registry import format_mac, CONNECTION_BLUETOOTH
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
-from homeassistant.helpers.event import async_call_later
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_MAC,
@@ -29,24 +22,33 @@ from homeassistant.const import (
     PRECISION_TENTHS,
     UnitOfTemperature,
 )
-from homeassistant.components.climate.const import (
-    ATTR_HVAC_MODE,
-    ClimateEntityFeature,
-    HVACAction,
-    PRESET_NONE,
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, format_mac
+from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_call_later
+
+from .const import (
+    CONF_CURRENT_TEMP_SELECTOR,
+    CONF_EXTERNAL_TEMP_SENSOR,
+    CONF_TARGET_TEMP_SELECTOR,
+    DEFAULT_CURRENT_TEMP_SELECTOR,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TARGET_TEMP_SELECTOR,
+    DOMAIN,
+    EQ_TO_HA_HVAC,
+    HA_TO_EQ_HVAC,
+    CurrentTemperatureSelector,
+    Preset,
+    TargetTemperatureSelector,
 )
-from homeassistant.components.climate import HVACMode
-
-from homeassistant.components.climate import ClimateEntity
-import voluptuous as vol
-
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_TEMP,
     EQ3BT_OFF_TEMP,
     Mode,
     Thermostat,
 )
-from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 DEVICE_SCHEMA = vol.Schema({vol.Required(CONF_MAC): cv.string})
@@ -69,6 +71,9 @@ async def async_setup_entry(
             conf_current_temp_selector=config_entry.options.get(
                 CONF_CURRENT_TEMP_SELECTOR, DEFAULT_CURRENT_TEMP_SELECTOR
             ),
+            conf_target_temp_selector=config_entry.options.get(
+                CONF_TARGET_TEMP_SELECTOR, DEFAULT_TARGET_TEMP_SELECTOR
+            ),
             conf_external_temp_sensor=config_entry.options.get(
                 CONF_EXTERNAL_TEMP_SENSOR, ""
             ),
@@ -90,6 +95,7 @@ class EQ3Climate(ClimateEntity):
         thermostat: Thermostat,
         scan_interval: float,
         conf_current_temp_selector: CurrentTemperatureSelector,
+        conf_target_temp_selector: TargetTemperatureSelector,
         conf_external_temp_sensor: str,
     ):
         """Initialize the thermostat."""
@@ -97,6 +103,7 @@ class EQ3Climate(ClimateEntity):
         self._thermostat.register_update_callback(self._on_updated)
         self._scan_interval = scan_interval
         self._conf_current_temp_selector = conf_current_temp_selector
+        self._conf_target_temp_selector = conf_target_temp_selector
         self._conf_external_temp_sensor = conf_external_temp_sensor
         self._target_temperature_to_set = None
         self._is_setting_temperature = False
@@ -141,11 +148,11 @@ class EQ3Climate(ClimateEntity):
     @callback
     def _on_updated(self):
         self._is_available = True
-        if self._target_temperature_to_set == self.target_temperature:
+        if self._target_temperature_to_set == self._thermostat.target_temperature:
             self._is_setting_temperature = False
         if not self._is_setting_temperature:
             # temperature may have been updated from the thermostat
-            self._target_temperature_to_set = self.target_temperature
+            self._target_temperature_to_set = self._thermostat.target_temperature
         if self.entity_id is None:
             _LOGGER.warn(
                 "[%s] Updated but the entity is not loaded", self._thermostat.name
@@ -176,11 +183,11 @@ class EQ3Climate(ClimateEntity):
             if self._thermostat.valve_state is None:
                 return None
             valve: int = self._thermostat.valve_state
-            return (1 - valve / 100) * 2 + self.target_temperature - 2
+            return (1 - valve / 100) * 2 + self._thermostat.target_temperature - 2
         if self._conf_current_temp_selector == CurrentTemperatureSelector.UI:
             return self._target_temperature_to_set
         if self._conf_current_temp_selector == CurrentTemperatureSelector.DEVICE:
-            return self.target_temperature
+            return self._thermostat.target_temperature
         if self._conf_current_temp_selector == CurrentTemperatureSelector.ENTITY:
             state = self.hass.states.get(self._conf_external_temp_sensor)
             if state is not None:
@@ -192,7 +199,11 @@ class EQ3Climate(ClimateEntity):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._thermostat.target_temperature
+        match self._conf_target_temp_selector:
+            case TargetTemperatureSelector.TARGET:
+                return self._target_temperature_to_set
+            case TargetTemperatureSelector.LAST_REPORTED:
+                return self._thermostat.target_temperature
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -217,11 +228,19 @@ class EQ3Climate(ClimateEntity):
         temperature = round(temperature * 2) / 2  # increments of 0.5
         temperature = min(temperature, self.max_temp)
         temperature = max(temperature, self.min_temp)
+
+        previous_temperature = self._target_temperature_to_set
         self._is_setting_temperature = True
         self._target_temperature_to_set = temperature
         # show current temp now
         self.async_schedule_update_ha_state()
-        await self.async_set_temperature_now()
+
+        try:
+            await self.async_set_temperature_now()
+        except Exception as ex:
+            _LOGGER.error(f"[{self._thermostat.name}] Failed setting temperature: {ex}")
+            self._target_temperature_to_set = previous_temperature
+            self.async_schedule_update_ha_state()
 
     async def async_set_temperature_now(self):
         await self._thermostat.async_set_target_temperature(
@@ -243,7 +262,7 @@ class EQ3Climate(ClimateEntity):
             self._target_temperature_to_set = EQ3BT_OFF_TEMP
             self._is_setting_temperature = True
         else:  # auto or manual/heat
-            self._target_temperature_to_set = self.target_temperature
+            self._target_temperature_to_set = self._thermostat.target_temperature
             self._is_setting_temperature = False
         self.async_schedule_update_ha_state()
 
@@ -262,9 +281,9 @@ class EQ3Climate(ClimateEntity):
             return "Low Battery"
         if self._thermostat.away:
             return Preset.AWAY
-        if self.target_temperature == self._thermostat.eco_temperature:
+        if self._thermostat.target_temperature == self._thermostat.eco_temperature:
             return Preset.ECO
-        if self.target_temperature == self._thermostat.comfort_temperature:
+        if self._thermostat.target_temperature == self._thermostat.comfort_temperature:
             return Preset.COMFORT
         if self._thermostat.mode == Mode.On:
             return Preset.OPEN
@@ -300,7 +319,7 @@ class EQ3Climate(ClimateEntity):
                 await self._thermostat.async_set_mode(Mode.On)
 
         # by now, the target temperature should have been (maybe set) and fetched
-        self._target_temperature_to_set = self.target_temperature
+        self._target_temperature_to_set = self._thermostat.target_temperature
         self._is_setting_temperature = False
 
     @property

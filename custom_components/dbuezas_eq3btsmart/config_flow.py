@@ -1,5 +1,6 @@
 import datetime
 from typing import Any
+from setuptools.config.setupcfg import Target
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL
@@ -17,6 +18,8 @@ from .const import (
     CONF_EXTERNAL_TEMP_SENSOR,
     CONF_STAY_CONNECTED,
     CONF_DEBUG_MODE,
+    CONF_TARGET_TEMP_SELECTOR,
+    DEFAULT_TARGET_TEMP_SELECTOR,
     Adapter,
     CurrentTemperatureSelector,
     DEFAULT_ADAPTER,
@@ -24,6 +27,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_STAY_CONNECTED,
     DOMAIN,
+    TargetTemperatureSelector,
 )
 import logging
 
@@ -172,6 +176,30 @@ class OptionsFlowHandler(OptionsFlow):
                                     {
                                         "label": "external entity",
                                         "value": CurrentTemperatureSelector.ENTITY,
+                                    },
+                                ],
+                            }
+                        }
+                    ),
+                    vol.Required(
+                        CONF_TARGET_TEMP_SELECTOR,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_TARGET_TEMP_SELECTOR,
+                                DEFAULT_TARGET_TEMP_SELECTOR,
+                            )
+                        },
+                    ): selector(
+                        {
+                            "select": {
+                                "options": [
+                                    {
+                                        "label": "target temperature to be set (fast)",
+                                        "value": TargetTemperatureSelector.TARGET,
+                                    },
+                                    {
+                                        "label": "target temperature in device",
+                                        "value": TargetTemperatureSelector.LAST_REPORTED,
                                     },
                                 ],
                             }
