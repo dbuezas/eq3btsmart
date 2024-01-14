@@ -66,6 +66,8 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak):
         """Handle bluetooth discovery."""
+        await self.async_set_unique_id(format_mac(discovery_info.address))
+        self._abort_if_unique_id_configured()
 
         _LOGGER.debug(
             "Discovered eQ3 thermostat using bluetooth: %s, %s",
