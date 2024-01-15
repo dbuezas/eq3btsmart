@@ -48,8 +48,6 @@ from eq3btsmart.structures import AwayDataAdapter, DeviceId, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = ["Thermostat"]
-
 
 class Thermostat:
     """Representation of a EQ3 Bluetooth Smart thermostat."""

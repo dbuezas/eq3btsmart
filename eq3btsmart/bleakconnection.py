@@ -24,8 +24,6 @@ from eq3btsmart.exceptions import BackendException
 # logging.getLogger("bleak.backends").setLevel(logging.WARNING)
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = ["BleakConnection"]
-
 
 class BleakConnection:
     """Representation of a BTLE Connection."""
