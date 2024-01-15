@@ -130,15 +130,15 @@ Status = "Status" / Struct(
     "cmd" / Const(PROP_INFO_RETURN, Int8ub),
     Const(0x01, Int8ub),
     "mode" / ModeFlags,
-    "valve" / Int8ub,  # type: ignore
+    "valve" / Int8ub,
     Const(0x04, Int8ub),
     "target_temp" / TempAdapter(Int8ub),
     "away"
-    / IfThenElse(  # noqa: W503
+    / IfThenElse(
         lambda ctx: ctx.mode.AWAY, AwayDataAdapter(Bytes(4)), Optional(Bytes(4))
     ),
     "presets"
-    / Optional(  # noqa: W503
+    / Optional(
         Struct(
             "window_open_temp" / TempAdapter(Int8ub),
             "window_open_time" / WindowOpenTimeAdapter(Int8ub),
@@ -153,7 +153,7 @@ Schedule = "Schedule" / Struct(
     "cmd" / Enum(Int8ub, **NAME_TO_CMD),
     "day" / Enum(Int8ub, **NAME_TO_DAY),
     "hours"
-    / GreedyRange(  # noqa: W503
+    / GreedyRange(
         Struct(
             "target_temp" / TempAdapter(Int8ub),
             "next_change_at" / TimeAdapter(Int8ub),
@@ -163,7 +163,7 @@ Schedule = "Schedule" / Struct(
 
 DeviceId = "DeviceId" / Struct(
     "cmd" / Const(PROP_ID_RETURN, Int8ub),
-    "version" / Int8ub,  # type: ignore
+    "version" / Int8ub,
     Int8ub,
     Int8ub,
     "serial" / DeviceSerialAdapter(Bytes(10)),
