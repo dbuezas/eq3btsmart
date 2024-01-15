@@ -3,18 +3,18 @@ from __future__ import annotations
 
 import logging
 
+from eq3btsmart import Thermostat
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from .const import (
+from dbuezas_eq3btsmart.const import (
     CONF_ADAPTER,
     CONF_STAY_CONNECTED,
     DEFAULT_ADAPTER,
     DEFAULT_STAY_CONNECTED,
     DOMAIN,
 )
-from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
 
 PLATFORMS = [
     Platform.CLIMATE,

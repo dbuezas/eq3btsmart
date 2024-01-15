@@ -48,6 +48,8 @@ from eq3btsmart.structures import AwayDataAdapter, DeviceId, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 
+__all__ = ["Thermostat"]
+
 
 class Thermostat:
     """Representation of a EQ3 Bluetooth Smart thermostat."""
@@ -205,8 +207,11 @@ class Thermostat:
         """Return the temperature we try to reach."""
         return self._status.target_temp if self._status else -1
 
-    async def async_set_target_temperature(self, temperature: float) -> None:
+    async def async_set_target_temperature(self, temperature: float | None) -> None:
         """Set new target temperature."""
+        if temperature is None:
+            return
+
         dev_temp = int(temperature * 2)
         if temperature == EQ3BT_OFF_TEMP or temperature == EQ3BT_ON_TEMP:
             dev_temp |= 0x40

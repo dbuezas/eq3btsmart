@@ -1,16 +1,19 @@
 import asyncio
 import logging
+from datetime import datetime
 
+from eq3btsmart import Thermostat
+from homeassistant.components.homekit import SensorDeviceClass
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, UndefinedType
+from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_DEBUG_MODE, DOMAIN
-from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
+from dbuezas_eq3btsmart.const import CONF_DEBUG_MODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,8 +50,10 @@ class Base(SensorEntity):
         self._attr_has_entity_name = True
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -64,10 +69,10 @@ class ValveSensor(Base):
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Valve"
         self._attr_icon = "mdi:pipe-valve"
-        self._attr_native_unit_of_measurement = "%"
+        self._attr_native_unit_of_measurement = PERCENTAGE
 
     @property
-    def state(self):
+    def state(self) -> int | None:
         return self._thermostat.valve_state
 
 
@@ -76,11 +81,14 @@ class AwayEndSensor(Base):
         super().__init__(_thermostat)
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Away until"
-        self._attr_device_class = "date"
+        self._attr_device_class = SensorDeviceClass.DATE
 
     @property
-    def native_value(self):
-        return self._thermostat.away_end if self._thermostat.away else None
+    def native_value(self) -> datetime | None:
+        if self._thermostat.away_end is None:
+            return None
+
+        return self._thermostat.away_end
 
 
 class RssiSensor(Base):
@@ -88,11 +96,11 @@ class RssiSensor(Base):
         super().__init__(_thermostat)
         _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_name = "Rssi"
-        self._attr_native_unit_of_measurement = "dBm"
+        self._attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def state(self):
+    def state(self) -> int | None:
         return self._thermostat._conn.rssi
 
 
@@ -104,7 +112,7 @@ class SerialNumberSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def state(self):
+    def state(self) -> str | None:
         return self._thermostat.device_serial
 
 
@@ -118,7 +126,7 @@ class FirmwareVersionSensor(Base):
     async def async_added_to_hass(self) -> None:
         asyncio.get_event_loop().create_task(self.fetch_serial())
 
-    async def fetch_serial(self):
+    async def fetch_serial(self) -> None:
         try:
             await self._thermostat.async_query_id()
         except Exception as e:
@@ -144,7 +152,7 @@ class FirmwareVersionSensor(Base):
         )
 
     @property
-    def state(self):
+    def state(self) -> str | None:
         return self._thermostat.firmware_version
 
 
@@ -155,7 +163,7 @@ class MacSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def state(self):
+    def state(self) -> str | None:
         return self._thermostat.mac
 
 
@@ -167,7 +175,7 @@ class RetriesSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def state(self):
+    def state(self) -> int:
         return self._thermostat._conn.retries
 
 
@@ -179,8 +187,8 @@ class PathSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def state(self):
-        if self._thermostat._conn._conn == None:
+    def state(self) -> str | None:
+        if self._thermostat._conn._conn is None:
             return None
 
         if not hasattr(self._thermostat._conn._conn._backend, "_device_path"):

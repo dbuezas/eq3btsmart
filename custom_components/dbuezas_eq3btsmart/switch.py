@@ -1,8 +1,11 @@
 import logging
+from typing import Any
 
 import voluptuous as vol
+from eq3btsmart import Thermostat
+from eq3btsmart.const import EQ3BT_MAX_TEMP, EQ3BT_OFF_TEMP
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
@@ -10,12 +13,7 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_DEBUG_MODE, DOMAIN
-from .python_eq3bt.eq3bt.eq3btsmart import (
-    EQ3BT_MAX_TEMP,
-    EQ3BT_OFF_TEMP,
-    Thermostat,
-)
+from dbuezas_eq3btsmart.const import CONF_DEBUG_MODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,8 +55,10 @@ class Base(SwitchEntity):
         self._attr_has_entity_name = True
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -66,9 +66,6 @@ class Base(SwitchEntity):
         return DeviceInfo(
             identifiers={(DOMAIN, self._thermostat.mac)},
         )
-
-    async def set_away_until(self, away_until, temperature: float) -> None:
-        pass
 
 
 class AwaySwitch(Base):
@@ -78,14 +75,14 @@ class AwaySwitch(Base):
         self._attr_name = "Away"
         self._attr_icon = "mdi:lock"
 
-    async def async_turn_on(self):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         await self._thermostat.async_set_away(True)
 
-    async def async_turn_off(self):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         await self._thermostat.async_set_away(False)
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         return self._thermostat.away
 
     async def set_away_until(self, away_until, temperature: float) -> None:
@@ -99,14 +96,14 @@ class BoostSwitch(Base):
         self._attr_name = "Boost"
         self._attr_icon = "mdi:speedometer"
 
-    async def async_turn_on(self):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         await self._thermostat.async_set_boost(True)
 
-    async def async_turn_off(self):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         await self._thermostat.async_set_boost(False)
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         return self._thermostat.boost
 
 
@@ -119,15 +116,15 @@ class ConnectionSwitch(Base):
         self._attr_assumed_state = True
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    async def async_turn_on(self):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         await self._thermostat._conn.async_make_request("ONLY CONNECT")
 
-    async def async_turn_off(self):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         if self._thermostat._conn._conn:
             await self._thermostat._conn._conn.disconnect()
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         if self._thermostat._conn._conn is None:
             return None
         return self._thermostat._conn._conn.is_connected

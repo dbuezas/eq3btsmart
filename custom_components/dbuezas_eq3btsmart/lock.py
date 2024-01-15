@@ -1,14 +1,14 @@
 import logging
 
+from eq3btsmart import Thermostat
 from homeassistant.components.lock import LockEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
+from dbuezas_eq3btsmart.const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,8 +32,10 @@ class Base(LockEntity):
         self._attr_has_entity_name = True
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -49,12 +51,12 @@ class LockedSwitch(Base):
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Locked"
 
-    async def async_lock(self, **kwargs):
+    async def async_lock(self, **kwargs) -> None:
         await self._thermostat.async_set_locked(True)
 
-    async def async_unlock(self, **kwargs):
+    async def async_unlock(self, **kwargs) -> None:
         await self._thermostat.async_set_locked(False)
 
     @property
-    def is_locked(self):
+    def is_locked(self) -> bool | None:
         return self._thermostat.locked

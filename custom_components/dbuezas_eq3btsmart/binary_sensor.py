@@ -1,15 +1,18 @@
 import json
 import logging
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
+from eq3btsmart import Thermostat
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
+from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_DEBUG_MODE, DOMAIN
-from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
+from dbuezas_eq3btsmart.const import CONF_DEBUG_MODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,8 +45,10 @@ class Base(BinarySensorEntity):
         self._attr_has_entity_name = True
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -61,7 +66,7 @@ class BusySensor(Base):
         self._attr_name = "Busy"
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         return self._thermostat._conn._lock.locked()
 
 
@@ -77,10 +82,10 @@ class ConnectedSensor(Base):
         _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_name = "Connected"
-        self._attr_device_class = "connectivity"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, str] | None:
         """Return the device specific state attributes."""
         if (device := self._thermostat._conn._ble_device) is None:
             return None
@@ -92,7 +97,7 @@ class ConnectedSensor(Base):
         return json.loads(json.dumps(details["props"], default=json_serial))
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         if self._thermostat._conn._conn is None:
             return False
         return self._thermostat._conn._conn.is_connected
@@ -103,7 +108,7 @@ class BatterySensor(Base):
         super().__init__(_thermostat)
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Battery"
-        self._attr_device_class = "battery"
+        self._attr_device_class = BinarySensorDeviceClass.BATTERY
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
@@ -116,7 +121,7 @@ class WindowOpenSensor(Base):
         super().__init__(_thermostat)
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_name = "Window Open"
-        self._attr_device_class = "window"
+        self._attr_device_class = BinarySensorDeviceClass.WINDOW
 
     @property
     def is_on(self):

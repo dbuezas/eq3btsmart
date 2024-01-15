@@ -2,20 +2,18 @@ import datetime
 import logging
 
 import voluptuous as vol
+from eq3btsmart import Thermostat
+from eq3btsmart.const import EQ3BT_MAX_TEMP, EQ3BT_MIN_TEMP, HOUR_24_PLACEHOLDER
 from homeassistant.components.button import ButtonEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import format_mac
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity import DeviceInfo, Entity, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_DEBUG_MODE, DOMAIN
-from .python_eq3bt.eq3bt.eq3btsmart import EQ3BT_MAX_TEMP, EQ3BT_MIN_TEMP, Thermostat
-from .python_eq3bt.eq3bt.structures import (
-    HOUR_24_PLACEHOLDER,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,8 +25,11 @@ def times_and_temps_schema(value):
         if not bool:
             raise vol.Invalid(error)
 
-    time = lambda i: value.get(f"next_change_at_{i}")
-    temp = lambda i: value.get(f"target_temp_{i}")
+    def time(i):
+        return value.get(f"next_change_at_{i}")
+
+    def temp(i):
+        return value.get(f"target_temp_{i}")
 
     v_assert(temp(0), f"Missing target_temp_{0}")
     if time(0):
@@ -80,7 +81,7 @@ async def async_setup_entry(
     """Add sensors for passed config_entry in HA."""
     eq3 = hass.data[DOMAIN][config_entry.entry_id]
     debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
-    new_devices = [FetchScheduleButton(eq3)]
+    new_devices: list[Entity] = [FetchScheduleButton(eq3)]
     async_add_entities(new_devices)
 
     if debug_mode:
@@ -104,8 +105,10 @@ class Base(ButtonEntity):
         self._attr_has_entity_name = True
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
