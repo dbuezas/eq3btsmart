@@ -33,6 +33,7 @@
         "**/.mypy_cache": true,
         "**/.pytest_cache": true,
         "**/.ruff_cache": true,
+        "**/dist": true,
     },
     "extensions.ignoreRecommendations": false
 }
