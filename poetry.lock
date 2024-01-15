@@ -673,6 +673,34 @@ files = [
 ]
 
 [[package]]
+name = "construct"
+version = "2.10.68"
+description = "A powerful declarative symmetric parser/builder for binary data"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "construct-2.10.68.tar.gz", hash = "sha256:7b2a3fd8e5f597a5aa1d614c3bd516fa065db01704c72a1efaaeec6ef23d8b45"},
+]
+
+[package.extras]
+extras = ["arrow", "cloudpickle", "enum34", "lz4", "numpy", "ruamel.yaml"]
+
+[[package]]
+name = "construct-typing"
+version = "0.6.2"
+description = "Extension for the python package 'construct' that adds typing features"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "construct-typing-0.6.2.tar.gz", hash = "sha256:948e998cfc003681dc34f2d071c3a688cf35b805cbe107febbc488ef967ccba1"},
+    {file = "construct_typing-0.6.2-py3-none-any.whl", hash = "sha256:ebea6989ac622d0c4eb457092cef0c7bfbcfa110bd018670fea7064d0bc09e47"},
+]
+
+[package.dependencies]
+construct = "2.10.68"
+typing-extensions = ">=4.6.0"
+
+[[package]]
 name = "cryptography"
 version = "41.0.7"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
@@ -2335,4 +2363,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "9d8fdf861ef5cac372e08a86853a61cceaa79b201e221e94bd456d4aef504f54"
+content-hash = "7c00bcc0e643031e092c43a540ac3e880097f0144a3a90e95b9fe2740ef1207d"
