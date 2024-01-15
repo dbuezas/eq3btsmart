@@ -12,7 +12,6 @@
     },
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",
-        "lint"
     },
     "python.analysis.autoImportCompletions": true,
     "python.analysis.packageIndexDepths": [
