@@ -113,3 +113,20 @@ Most notably, you can select a specific bluetooth adapter, or limit to local one
 This is heavily based on https://github.com/rytilahti/python-eq3bt and https://github.com/home-assistant/core/tree/dev/homeassistant/components/eq3btsmart and it should ideally be two PRs instead.
 Unfortunately, the changes go too deep and remove support for the CLI and other backends.
 Therefore, here's a self contained custom component instead.
+
+# Contributing
+
+## Environment Setup
+
+We recommend using VS Code as IDE.
+
+* Fork and clone the repository
+* Install the [poetry](https://python-poetry.org/) dependency management tool and add it to your `PATH`
+* Run `poetry config virtualenvs.in-project true` to have `poetry` create the virtual environment inside the project directory
+    > *This is recommended for compatibility with VS Code*
+* Run `poetry install --no-root --with dev` to install dependencies and setup the virtual environment
+* Install the recommended extensions in VS Code
+* Select the Python interpreter to be `.venv/bin/python.exe` (Linux) or `.venv/Scripts/python.exe` (Windows) in VS Code
+
+Your environment should now be setup to contain all dev and non-dev dependencies and VS Code will automatically highlight and fix issues detected by `ruff` and `mypy`.
+
