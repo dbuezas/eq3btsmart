@@ -35,5 +35,5 @@
         "**/.pytest_cache": true,
         "**/.ruff_cache": true,
     },
-    "extensions.ignoreRecommendations": false,
+    "extensions.ignoreRecommendations": false
 }

@@ -1,35 +1,34 @@
-import datetime
+import logging
 from typing import Any
-from setuptools.config.setupcfg import Target
+
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
+from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.device_registry import format_mac
-from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.helpers import config_validation as cv
-from homeassistant.config_entries import ConfigEntry, OptionsFlow
+from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import selector
 
 from .const import (
     CONF_ADAPTER,
     CONF_CURRENT_TEMP_SELECTOR,
+    CONF_DEBUG_MODE,
     CONF_EXTERNAL_TEMP_SENSOR,
     CONF_STAY_CONNECTED,
-    CONF_DEBUG_MODE,
     CONF_TARGET_TEMP_SELECTOR,
-    DEFAULT_TARGET_TEMP_SELECTOR,
-    Adapter,
-    CurrentTemperatureSelector,
     DEFAULT_ADAPTER,
     DEFAULT_CURRENT_TEMP_SELECTOR,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_STAY_CONNECTED,
+    DEFAULT_TARGET_TEMP_SELECTOR,
     DOMAIN,
+    Adapter,
+    CurrentTemperatureSelector,
     TargetTemperatureSelector,
 )
-import logging
 
 _LOGGER = logging.getLogger(__name__)
 

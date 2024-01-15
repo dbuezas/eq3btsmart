@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from unittest import TestCase
 
 import pytest
-
 from eq3bt import TemperatureException, Thermostat
 from eq3bt.eq3btsmart import PROP_ID_QUERY, PROP_INFO_QUERY, PROP_NTFY_HANDLE, Mode
 

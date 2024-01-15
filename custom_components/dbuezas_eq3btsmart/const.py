@@ -1,14 +1,16 @@
 """Constants for EQ3 Bluetooth Smart Radiator Valves."""
-from .python_eq3bt.eq3bt.eq3btsmart import Mode
-from homeassistant.components.climate import HVACMode
 from enum import Enum
+
+from homeassistant.components.climate import HVACMode
+
+from .python_eq3bt.eq3bt.eq3btsmart import Mode
 
 DOMAIN = "dbuezas_eq3btsmart"
 from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_BOOST,
-    PRESET_ECO,
     PRESET_COMFORT,
+    PRESET_ECO,
 )
 
 EQ_TO_HA_HVAC = {
@@ -55,6 +57,7 @@ class CurrentTemperatureSelector(str, Enum):
     DEVICE = "DEVICE"
     VALVE = "VALVE"
     ENTITY = "ENTITY"
+
 
 class TargetTemperatureSelector(str, Enum):
     TARGET = "TARGET"

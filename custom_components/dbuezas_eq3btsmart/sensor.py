@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 
 from homeassistant.components.sensor import SensorEntity
@@ -123,7 +122,9 @@ class FirmwareVersionSensor(Base):
         try:
             await self._thermostat.async_query_id()
         except Exception as e:
-            _LOGGER.error(f"[{self._thermostat.name}] Error fetching serial number: {e}")
+            _LOGGER.error(
+                f"[{self._thermostat.name}] Error fetching serial number: {e}"
+            )
             return
 
         device_registry = dr.async_get(self.hass)

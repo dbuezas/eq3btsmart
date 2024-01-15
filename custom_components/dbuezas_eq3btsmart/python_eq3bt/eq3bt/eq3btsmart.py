@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 
 from construct import Byte
-
 from homeassistant.core import HomeAssistant
-from .structures import AwayDataAdapter, DeviceId, ModeFlags, Schedule, Status
+
+from .structures import AwayDataAdapter, DeviceId, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 

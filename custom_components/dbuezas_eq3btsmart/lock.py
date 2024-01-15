@@ -1,13 +1,14 @@
-from .const import DOMAIN
 import logging
 
-from homeassistant.helpers.device_registry import format_mac
-from .python_eq3bt.eq3bt.eq3btsmart import Mode, Thermostat
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.lock import LockEntity
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from .const import DOMAIN
+from .python_eq3bt.eq3bt.eq3btsmart import Thermostat
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ class Base(LockEntity):
         )
 
 
-
 class LockedSwitch(Base):
     def __init__(self, _thermostat: Thermostat):
         super().__init__(_thermostat)
@@ -58,4 +58,3 @@ class LockedSwitch(Base):
     @property
     def is_locked(self):
         return self._thermostat.locked
-
