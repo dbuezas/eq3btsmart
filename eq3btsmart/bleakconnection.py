@@ -14,20 +14,18 @@ from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 
-from ...const import Adapter
-from . import BackendException
-
-REQUEST_TIMEOUT = 5
-RETRY_BACK_OFF_FACTOR = 0.25
-RETRIES = 14
-
-# Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
-PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
-PROP_NTFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
+from eq3btsmart.const import (
+    PROP_NTFY_UUID,
+    PROP_WRITE_UUID,
+    REQUEST_TIMEOUT,
+    RETRIES,
+    RETRY_BACK_OFF_FACTOR,
+    Adapter,
+)
+from eq3btsmart.exceptions import BackendException
 
 # bleak backends are very loud on debug, this reduces the log spam when using --debug
 # logging.getLogger("bleak.backends").setLevel(logging.WARNING)
-
 _LOGGER = logging.getLogger(__name__)
 
 

@@ -14,14 +14,13 @@ from construct import (
     Struct,
 )
 
-PROP_ID_RETURN = 1
-PROP_INFO_RETURN = 2
-PROP_SCHEDULE_SET = 0x10
-PROP_SCHEDULE_RETURN = 0x21
-
-NAME_TO_DAY = {"sat": 0, "sun": 1, "mon": 2, "tue": 3, "wed": 4, "thu": 5, "fri": 6}
-NAME_TO_CMD = {"write": PROP_SCHEDULE_SET, "response": PROP_SCHEDULE_RETURN}
-HOUR_24_PLACEHOLDER = 1234
+from eq3btsmart.const import (
+    HOUR_24_PLACEHOLDER,
+    NAME_TO_CMD,
+    NAME_TO_DAY,
+    PROP_ID_RETURN,
+    PROP_INFO_RETURN,
+)
 
 
 class TimeAdapter(Adapter):

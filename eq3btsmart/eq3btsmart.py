@@ -11,55 +11,40 @@ import codecs
 import logging
 import struct
 from datetime import datetime, timedelta
-from enum import IntEnum
 
 from construct import Byte
 from homeassistant.core import HomeAssistant
 
-from .structures import AwayDataAdapter, DeviceId, Schedule, Status
+from eq3btsmart.const import (
+    DEFAULT_AWAY_HOURS,
+    DEFAULT_AWAY_TEMP,
+    EQ3BT_MAX_OFFSET,
+    EQ3BT_MAX_TEMP,
+    EQ3BT_MIN_OFFSET,
+    EQ3BT_MIN_TEMP,
+    EQ3BT_OFF_TEMP,
+    EQ3BT_ON_TEMP,
+    PROP_BOOST,
+    PROP_COMFORT,
+    PROP_COMFORT_ECO_CONFIG,
+    PROP_ECO,
+    PROP_ID_QUERY,
+    PROP_ID_RETURN,
+    PROP_INFO_QUERY,
+    PROP_INFO_RETURN,
+    PROP_LOCK,
+    PROP_MODE_WRITE,
+    PROP_OFFSET,
+    PROP_SCHEDULE_QUERY,
+    PROP_SCHEDULE_RETURN,
+    PROP_TEMPERATURE_WRITE,
+    PROP_WINDOW_OPEN_CONFIG,
+    Mode,
+)
+from eq3btsmart.exceptions import TemperatureException
+from eq3btsmart.structures import AwayDataAdapter, DeviceId, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
-
-PROP_ID_QUERY = 0
-PROP_ID_RETURN = 1
-PROP_INFO_QUERY = 3
-PROP_INFO_RETURN = 2
-PROP_COMFORT_ECO_CONFIG = 0x11
-PROP_OFFSET = 0x13
-PROP_WINDOW_OPEN_CONFIG = 0x14
-PROP_SCHEDULE_QUERY = 0x20
-PROP_SCHEDULE_RETURN = 0x21
-
-PROP_MODE_WRITE = 0x40
-PROP_TEMPERATURE_WRITE = 0x41
-PROP_COMFORT = 0x43
-PROP_ECO = 0x44
-PROP_BOOST = 0x45
-PROP_LOCK = 0x80
-
-EQ3BT_AWAY_TEMP = 12.0
-EQ3BT_MIN_TEMP = 5.0
-EQ3BT_MAX_TEMP = 29.5
-EQ3BT_OFF_TEMP = 4.5
-EQ3BT_ON_TEMP = 30.0
-EQ3BT_MIN_OFFSET = -3.5
-EQ3BT_MAX_OFFSET = 3.5
-
-
-class Mode(IntEnum):
-    """Thermostat modes."""
-
-    Unknown = 0
-    Off = 0
-    On = 1
-    Auto = 2
-    Manual = 3
-
-
-class TemperatureException(Exception):
-    """Temperature out of range error."""
-
-    pass
 
 
 # pylint: disable=too-many-instance-attributes
@@ -81,8 +66,8 @@ class Thermostat:
         self._presets = None
         self._device_data = None
         self._schedule = {}
-        self.default_away_hours: float = 30 * 24
-        self.default_away_temp: float = 12
+        self.default_away_hours: float = DEFAULT_AWAY_HOURS
+        self.default_away_temp: float = DEFAULT_AWAY_TEMP
 
         from .bleakconnection import BleakConnection
 
