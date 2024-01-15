@@ -1,22 +1,21 @@
 import datetime
-
-from .python_eq3bt.eq3bt.structures import (
-    HOUR_24_PLACEHOLDER,
-)
-from .const import CONF_DEBUG_MODE, DOMAIN
 import logging
 
 import voluptuous as vol
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.device_registry import format_mac
-from .python_eq3bt.eq3bt.eq3btsmart import EQ3BT_MAX_TEMP, EQ3BT_MIN_TEMP, Thermostat
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.components.button import ButtonEntity
-from homeassistant.helpers import entity_platform
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform
+from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from .const import CONF_DEBUG_MODE, DOMAIN
+from .python_eq3bt.eq3bt.eq3btsmart import EQ3BT_MAX_TEMP, EQ3BT_MIN_TEMP, Thermostat
+from .python_eq3bt.eq3bt.structures import (
+    HOUR_24_PLACEHOLDER,
+)
 
 _LOGGER = logging.getLogger(__name__)
 

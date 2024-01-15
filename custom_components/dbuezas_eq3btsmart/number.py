@@ -1,8 +1,14 @@
-from datetime import timedelta
-from .const import DOMAIN
 import logging
+from datetime import timedelta
 
+from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from .const import DOMAIN
 from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MAX_OFFSET,
     EQ3BT_MAX_TEMP,
@@ -10,11 +16,6 @@ from .python_eq3bt.eq3bt.eq3btsmart import (
     EQ3BT_MIN_TEMP,
     Thermostat,
 )
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 

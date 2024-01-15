@@ -5,19 +5,17 @@ asyncio functions to synchronous architecture of python-eq3bt.
 """
 import asyncio
 import logging
-import asyncio
+from typing import cast
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
-from ...const import Adapter
-from homeassistant.components import bluetooth
-from homeassistant.core import HomeAssistant, callback
-
-from . import BackendException
-from typing import TYPE_CHECKING, cast
-
 from bleak.backends.device import BLEDevice
+from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
+from homeassistant.components import bluetooth
+from homeassistant.core import HomeAssistant
+
+from ...const import Adapter
+from . import BackendException
 
 REQUEST_TIMEOUT = 5
 RETRY_BACK_OFF_FACTOR = 0.25
@@ -102,9 +100,7 @@ class BleakConnection:
         else:
             device_advertisement_datas = sorted(
                 bluetooth.async_scanner_devices_by_address(
-                    hass=self._hass,
-                    address=self._mac,
-                    connectable=True
+                    hass=self._hass, address=self._mac, connectable=True
                 ),
                 key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi
                 or NO_RSSI_VALUE,
@@ -178,7 +174,9 @@ class BleakConnection:
                 if value != "ONLY CONNECT":
                     try:
                         await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                        await conn.write_gatt_char(PROP_WRITE_UUID, value, response=True)
+                        await conn.write_gatt_char(
+                            PROP_WRITE_UUID, value, response=True
+                        )
                         await asyncio.wait_for(
                             self._notify_event.wait(), REQUEST_TIMEOUT
                         )
