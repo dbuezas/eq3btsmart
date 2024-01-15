@@ -986,6 +986,20 @@ voluptuous-serialize = "2.6.0"
 yarl = "1.9.4"
 
 [[package]]
+name = "homeassistant-stubs"
+version = "2024.1.3"
+description = "PEP 484 typing stubs for Home Assistant Core"
+optional = false
+python-versions = ">=3.11,<3.13"
+files = [
+    {file = "homeassistant_stubs-2024.1.3-py3-none-any.whl", hash = "sha256:98879043e2f2e216097ca7200d83057b44764515ea2c0c9514dd52ea21841b09"},
+    {file = "homeassistant_stubs-2024.1.3.tar.gz", hash = "sha256:20c660f341bc2d567379bd4cdb541ed6951534188e342bb502ce646c7c7c1cd4"},
+]
+
+[package.dependencies]
+homeassistant = "2024.1.3"
+
+[[package]]
 name = "httpcore"
 version = "1.0.2"
 description = "A minimal low-level HTTP client."
@@ -1931,6 +1945,21 @@ files = [
 voluptuous = "*"
 
 [[package]]
+name = "voluptuous-stubs"
+version = "0.1.1"
+description = "voluptuous stubs"
+optional = false
+python-versions = "*"
+files = [
+    {file = "voluptuous-stubs-0.1.1.tar.gz", hash = "sha256:70fb1c088242f20e11023252b5648cd77f831f692cd910c8f9713cc135cf8cc8"},
+    {file = "voluptuous_stubs-0.1.1-py3-none-any.whl", hash = "sha256:f216c427ed7e190b8413e26cf4f67e1bda692ea8225ed0d875f7724d10b7cb10"},
+]
+
+[package.dependencies]
+mypy = ">=0.720"
+typing-extensions = ">=3.7.4"
+
+[[package]]
 name = "winrt-runtime"
 version = "2.0.0b1"
 description = "Python projection of Windows Runtime (WinRT) APIs"
@@ -2306,4 +2335,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "65455f21c5a997aef43f75d7dd8988d8a5b84d1a281d3e156a0c147b651dfc05"
+content-hash = "9d8fdf861ef5cac372e08a86853a61cceaa79b201e221e94bd456d4aef504f54"
