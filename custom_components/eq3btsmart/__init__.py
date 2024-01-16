@@ -1,20 +1,29 @@
 """Support for EQ3 devices."""
-from __future__ import annotations
 
-import logging
+from typing import Any
 
 from eq3btsmart import Thermostat
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
 
 from .const import (
     CONF_ADAPTER,
+    CONF_CURRENT_TEMP_SELECTOR,
+    CONF_DEBUG_MODE,
+    CONF_EXTERNAL_TEMP_SENSOR,
     CONF_STAY_CONNECTED,
+    CONF_TARGET_TEMP_SELECTOR,
     DEFAULT_ADAPTER,
+    DEFAULT_CURRENT_TEMP_SELECTOR,
+    DEFAULT_DEBUG_MODE,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_STAY_CONNECTED,
+    DEFAULT_TARGET_TEMP_SELECTOR,
     DOMAIN,
+    Adapter,
 )
+from .models import Eq3Config, Eq3ConfigEntry
 
 PLATFORMS = [
     Platform.CLIMATE,
@@ -26,47 +35,70 @@ PLATFORMS = [
     Platform.NUMBER,
 ]
 
-_LOGGER = logging.getLogger(__name__)
-
-# based on https://github.com/home-assistant/example-custom-config/tree/master/custom_components/detailed_hello_world_push
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Hello World from a config entry."""
+    """Called when an entry is setup."""
 
-    # Store an instance of the "connecting" class that does the work of speaking
-    # with your actual devices.
+    mac_address: str = entry.data[CONF_MAC]
+    name: str = entry.data[CONF_NAME]
+    adapter: Adapter = entry.options.get(CONF_ADAPTER, DEFAULT_ADAPTER)
+    stay_connected: bool = entry.options.get(
+        CONF_STAY_CONNECTED, DEFAULT_STAY_CONNECTED
+    )
+    current_temp_selector = entry.options.get(
+        CONF_CURRENT_TEMP_SELECTOR, DEFAULT_CURRENT_TEMP_SELECTOR
+    )
+    target_temp_selector = entry.options.get(
+        CONF_TARGET_TEMP_SELECTOR, DEFAULT_TARGET_TEMP_SELECTOR
+    )
+    external_temp_sensor = entry.options.get(CONF_EXTERNAL_TEMP_SENSOR)
+    debug_mode = entry.options.get(CONF_DEBUG_MODE, DEFAULT_DEBUG_MODE)
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+
+    eq3_config = Eq3Config(
+        mac_address=mac_address,
+        name=name,
+        adapter=adapter,
+        stay_connected=stay_connected,
+        current_temp_selector=current_temp_selector,
+        target_temp_selector=target_temp_selector,
+        external_temp_sensor=external_temp_sensor,
+        debug_mode=debug_mode,
+        scan_interval=scan_interval,
+    )
 
     thermostat = Thermostat(
-        mac=entry.data["mac"],
-        name=entry.data["name"],
-        adapter=entry.options.get(CONF_ADAPTER, DEFAULT_ADAPTER),
-        stay_connected=entry.options.get(CONF_STAY_CONNECTED, DEFAULT_STAY_CONNECTED),
+        mac=mac_address,
+        name=name,
+        adapter=adapter,
+        stay_connected=stay_connected,
         hass=hass,
     )
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = thermostat
+
+    eq3_config_entry = Eq3ConfigEntry(eq3_config=eq3_config, thermostat=thermostat)
+
+    domain_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {})
+    domain_data[entry.entry_id] = eq3_config_entry
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
-
-    # This creates each HA object for each platform your device requires.
-    # It's done by calling the `async_setup_entry` function in each platform module.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    # This is called when an entry/configured device is to be removed. The class
-    # needs to unload itself, and remove callbacks. See the classes for further
-    # details
+    """Called when an entry is unloaded."""
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
     if unload_ok:
-        thermostat = hass.data[DOMAIN].pop(entry.entry_id)
-        thermostat.shutdown()
+        eq3_config_entry: Eq3ConfigEntry = hass.data[DOMAIN].pop(entry.entry_id)
+        eq3_config_entry.thermostat.shutdown()
+
     return unload_ok
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Update listener. Called when integration options are changed"""
+    """Called when an entry is updated."""
+
     await hass.config_entries.async_reload(entry.entry_id)

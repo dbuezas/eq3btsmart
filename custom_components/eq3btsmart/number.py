@@ -1,6 +1,9 @@
-import logging
+"""Platform for eQ-3 number entities."""
+
 from datetime import timedelta
 
+from custom_components.eq3btsmart.eq3_entity import Eq3Entity
+from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from eq3btsmart.const import (
     EQ3BT_MAX_OFFSET,
@@ -21,9 +24,16 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
+from .const import (
+    DOMAIN,
+    ENTITY_NAME_AWAY_HOURS,
+    ENTITY_NAME_AWAY_TEMPERATURE,
+    ENTITY_NAME_COMFORT,
+    ENTITY_NAME_ECO,
+    ENTITY_NAME_OFFSET,
+    ENTITY_NAME_WINDOW_OPEN_TEMPERATURE,
+    ENTITY_NAME_WINDOW_OPEN_TIMEOUT,
+)
 
 
 async def async_setup_entry(
@@ -31,25 +41,31 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Add sensors for passed config_entry in HA."""
-    eq3 = hass.data[DOMAIN][config_entry.entry_id]
+    """Called when an entry is setup."""
+
+    eq3_config_entry: Eq3ConfigEntry = hass.data[DOMAIN][config_entry.entry_id]
+    thermostat = eq3_config_entry.thermostat
+    eq3_config = eq3_config_entry.eq3_config
 
     new_devices = [
-        ComfortTemperature(eq3),
-        EcoTemperature(eq3),
-        OffsetTemperature(eq3),
-        WindowOpenTemperature(eq3),
-        WindowOpenTimeout(eq3),
-        AwayForHours(eq3),
-        AwayTemperature(eq3),
+        ComfortTemperature(eq3_config, thermostat),
+        EcoTemperature(eq3_config, thermostat),
+        OffsetTemperature(eq3_config, thermostat),
+        WindowOpenTemperature(eq3_config, thermostat),
+        WindowOpenTimeout(eq3_config, thermostat),
+        AwayForHours(eq3_config, thermostat),
+        AwayTemperature(eq3_config, thermostat),
     ]
     async_add_entities(new_devices)
 
 
-class Base(NumberEntity):
-    def __init__(self, _thermostat: Thermostat):
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._thermostat = _thermostat
+class Base(Eq3Entity, NumberEntity):
+    """Base class for all eQ-3 number entities."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_has_entity_name = True
         self._attr_device_class = NumberDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -64,19 +80,22 @@ class Base(NumberEntity):
         if self.name is None or isinstance(self.name, UndefinedType):
             return None
 
-        return format_mac(self._thermostat.mac) + "_" + self.name
+        return format_mac(self._eq3_config.mac_address) + "_" + self.name
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
 
 
 class ComfortTemperature(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Comfort"
+    """Number entity for the comfort temperature."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._attr_name = ENTITY_NAME_COMFORT
 
     @property
     def native_value(self) -> float | None:
@@ -93,9 +112,12 @@ class ComfortTemperature(Base):
 
 
 class EcoTemperature(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Eco"
+    """Number entity for the eco temperature."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._attr_name = ENTITY_NAME_ECO
 
     @property
     def native_value(self) -> float | None:
@@ -112,9 +134,12 @@ class EcoTemperature(Base):
 
 
 class OffsetTemperature(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Offset"
+    """Number entity for the temperature offset."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._attr_name = ENTITY_NAME_OFFSET
         self._attr_native_min_value = EQ3BT_MIN_OFFSET
         self._attr_native_max_value = EQ3BT_MAX_OFFSET
 
@@ -127,9 +152,12 @@ class OffsetTemperature(Base):
 
 
 class WindowOpenTemperature(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Window Open"
+    """Number entity for the window open temperature."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._attr_name = ENTITY_NAME_WINDOW_OPEN_TEMPERATURE
 
     @property
     def native_value(self) -> float | None:
@@ -146,30 +174,20 @@ class WindowOpenTemperature(Base):
         )
 
 
-class WindowOpenTimeout(NumberEntity):
-    def __init__(self, _thermostat: Thermostat):
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._thermostat = _thermostat
+class WindowOpenTimeout(Base):
+    """Number entity for the window open timeout."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._thermostat.register_update_callback(self.schedule_update_ha_state)
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.BOX
-        self._attr_name = "Window Open Timeout"
+        self._attr_name = ENTITY_NAME_WINDOW_OPEN_TIMEOUT
         self._attr_native_min_value = 0
         self._attr_native_max_value = 60
         self._attr_native_step = 5
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
-
-    @property
-    def unique_id(self) -> str | None:
-        if self.name is None or isinstance(self.name, UndefinedType):
-            return None
-
-        return format_mac(self._thermostat.mac) + "_" + self.name
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
-        )
 
     @property
     def native_value(self) -> float | None:
@@ -190,29 +208,19 @@ class WindowOpenTimeout(NumberEntity):
         )
 
 
-class AwayForHours(RestoreNumber):
-    def __init__(self, _thermostat: Thermostat):
-        self._thermostat = _thermostat
+class AwayForHours(Base, RestoreNumber):
+    """Number entity for the away hours."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.BOX
-        self._attr_name = "Away Hours"
+        self._attr_name = ENTITY_NAME_AWAY_HOURS
         self._attr_native_min_value = 0.5
         self._attr_native_max_value = 1000000
         self._attr_native_step = 0.5
         self._attr_native_unit_of_measurement = UnitOfTime.HOURS
-
-    @property
-    def unique_id(self) -> str | None:
-        if self.name is None or isinstance(self.name, UndefinedType):
-            return None
-
-        return format_mac(self._thermostat.mac) + "_" + self.name
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
-        )
 
     async def async_added_to_hass(self) -> None:
         """Restore last state."""
@@ -230,25 +238,16 @@ class AwayForHours(RestoreNumber):
 
 
 class AwayTemperature(Base, RestoreNumber):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Away"
+    """Number entity for the away temperature."""
 
-    @property
-    def unique_id(self) -> str | None:
-        if self.name is None or isinstance(self.name, UndefinedType):
-            return None
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
 
-        return format_mac(self._thermostat.mac) + "_" + self.name
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
-        )
+        self._attr_name = ENTITY_NAME_AWAY_TEMPERATURE
 
     async def async_added_to_hass(self) -> None:
         """Restore last state."""
+
         data = await self.async_get_last_number_data()
         if data and data.native_value is not None:
             self._thermostat.default_away_temp = data.native_value

@@ -1,9 +1,10 @@
-import logging
+"""Platform for eQ-3 switch entities."""
+
+from datetime import datetime
 from typing import Any
 
-import voluptuous as vol
+from custom_components.eq3btsmart.eq3_entity import Eq3Entity
 from eq3btsmart import Thermostat
-from eq3btsmart.const import EQ3BT_MAX_TEMP, EQ3BT_OFF_TEMP
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
@@ -13,14 +14,17 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_DEBUG_MODE, DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
-
-SET_AWAY_UNTIL_SCHEMA = {
-    vol.Required("away_until"): cv.datetime,
-    vol.Required("temperature"): vol.Range(min=EQ3BT_OFF_TEMP, max=EQ3BT_MAX_TEMP),
-}
+from .const import (
+    DOMAIN,
+    ENTITY_ICON_AWAY_SWITCH,
+    ENTITY_ICON_BOOST_SWITCH,
+    ENTITY_ICON_CONNECTION,
+    ENTITY_NAME_AWAY_SWITCH,
+    ENTITY_NAME_BOOST_SWITCH,
+    ENTITY_NAME_CONNECTION,
+)
+from .models import Eq3Config, Eq3ConfigEntry
+from .schemas import SCHEMA_SET_AWAY_UNTIL
 
 
 async def async_setup_entry(
@@ -28,30 +32,36 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    eq3 = hass.data[DOMAIN][config_entry.entry_id]
-    debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
+    """Called when an entry is setup."""
 
-    new_devices = [
-        AwaySwitch(eq3),
-        BoostSwitch(eq3),
+    eq3_config_entry: Eq3ConfigEntry = hass.data[DOMAIN][config_entry.entry_id]
+    thermostat = eq3_config_entry.thermostat
+    eq3_config = eq3_config_entry.eq3_config
+
+    entities_to_add = [
+        AwaySwitch(eq3_config, thermostat),
+        BoostSwitch(eq3_config, thermostat),
     ]
-    async_add_entities(new_devices)
-    if debug_mode:
-        new_devices = [ConnectionSwitch(eq3)]
-        async_add_entities(new_devices)
+
+    if eq3_config.debug_mode:
+        entities_to_add += [ConnectionSwitch(eq3_config, thermostat)]
+
+    async_add_entities(entities_to_add)
 
     platform = entity_platform.async_get_current_platform()
-
     platform.async_register_entity_service(
         "set_away_until",
-        cv.make_entity_service_schema(SET_AWAY_UNTIL_SCHEMA),
+        cv.make_entity_service_schema(SCHEMA_SET_AWAY_UNTIL),
         "set_away_until",
     )
 
 
-class Base(SwitchEntity):
-    def __init__(self, _thermostat: Thermostat):
-        self._thermostat = _thermostat
+class Base(Eq3Entity, SwitchEntity):
+    """Base class for all eQ-3 switches."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
         self._attr_has_entity_name = True
 
     @property
@@ -59,21 +69,24 @@ class Base(SwitchEntity):
         if self.name is None or isinstance(self.name, UndefinedType):
             return None
 
-        return format_mac(self._thermostat.mac) + "_" + self.name
+        return format_mac(self._eq3_config.mac_address) + "_" + self.name
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
 
 
 class AwaySwitch(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._attr_name = "Away"
-        self._attr_icon = "mdi:lock"
+    """Switch to set the thermostat to away mode."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = ENTITY_NAME_AWAY_SWITCH
+        self._attr_icon = ENTITY_ICON_AWAY_SWITCH
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._thermostat.async_set_away(True)
@@ -85,16 +98,19 @@ class AwaySwitch(Base):
     def is_on(self) -> bool | None:
         return self._thermostat.away
 
-    async def set_away_until(self, away_until, temperature: float) -> None:
+    async def set_away_until(self, away_until: datetime, temperature: float) -> None:
         await self._thermostat.async_set_away_until(away_until, temperature)
 
 
 class BoostSwitch(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._attr_name = "Boost"
-        self._attr_icon = "mdi:speedometer"
+    """Switch to set the thermostat to boost mode."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = ENTITY_NAME_BOOST_SWITCH
+        self._attr_icon = ENTITY_ICON_BOOST_SWITCH
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._thermostat.async_set_boost(True)
@@ -108,11 +124,16 @@ class BoostSwitch(Base):
 
 
 class ConnectionSwitch(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        _thermostat._conn.register_connection_callback(self.schedule_update_ha_state)
-        self._attr_name = "Connection"
-        self._attr_icon = "mdi:bluetooth"
+    """Switch to connect/disconnect the thermostat."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._thermostat._conn.register_connection_callback(
+            self.schedule_update_ha_state
+        )
+        self._attr_name = ENTITY_NAME_CONNECTION
+        self._attr_icon = ENTITY_ICON_CONNECTION
         self._attr_assumed_state = True
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
