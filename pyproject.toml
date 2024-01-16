@@ -26,3 +26,6 @@ voluptuous-stubs = "^0.1.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+explicit_package_bases = true
