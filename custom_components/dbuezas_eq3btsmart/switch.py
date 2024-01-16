@@ -13,7 +13,7 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from dbuezas_eq3btsmart.const import CONF_DEBUG_MODE, DOMAIN
+from .const import CONF_DEBUG_MODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 

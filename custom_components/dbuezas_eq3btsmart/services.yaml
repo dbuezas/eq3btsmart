@@ -2,7 +2,7 @@ set_away_until:
   name: Set Away until
   target:
     device:
-      integration: dbuezas_eq3btsmart
+      integration: eq3btsmart
       model: CC-RT-BLE-EQ
   fields:
     away_until:
@@ -26,7 +26,7 @@ set_schedule:
   name: Set EQ3 Schedule
   target:
     device:
-      integration: dbuezas_eq3btsmart
+      integration: eq3btsmart
       model: CC-RT-BLE-EQ
   fields:
     days:
@@ -36,7 +36,7 @@ set_schedule:
         select:
           mode: list
           multiple: true
-          options: 
+          options:
             - label: Monday
               value: mon
             - label: Tuesday
@@ -70,35 +70,35 @@ set_schedule:
       selector: &time_selector
         time:
 
-    target_temp_1: 
+    target_temp_1:
       name: "Then change to"
       required: false
       example: 21
       default: 21
       selector: *temp_selector
-    next_change_at_1: 
+    next_change_at_1:
       name: Until
       example: "09:00:00"
       default: "09:00:00"
       selector: *time_selector
 
-    target_temp_2: 
+    target_temp_2:
       name: "Then change to"
       example: 17
       default: 17
       selector: *temp_selector
-    next_change_at_2: 
+    next_change_at_2:
       name: Until
       example: "17:00:00"
       default: "17:00:00"
       selector: *time_selector
 
-    target_temp_3: 
+    target_temp_3:
       name: "Then change to"
       example: 21
       default: 21
       selector: *temp_selector
-    next_change_at_3: 
+    next_change_at_3:
       name: Until
       example: "23:00:00"
       default: "23:00:00"
@@ -109,16 +109,16 @@ set_schedule:
       example: 17
       default: 17
       selector: *temp_selector
-    next_change_at_4: 
+    next_change_at_4:
       name: Until
       default: "23:00:00"
       selector: *time_selector
-    
+
     target_temp_5:
       name: "Then change to"
       default: 17
       selector: *temp_selector
-    next_change_at_5: 
+    next_change_at_5:
       name: Until
       default: "23:00:00"
       selector: *time_selector

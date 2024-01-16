@@ -1,4 +1,4 @@
-"""Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
+"""Support for eQ-3 Bluetooth Smart thermostats."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later
 
-from dbuezas_eq3btsmart.const import (
+from .const import (
     CONF_CURRENT_TEMP_SELECTOR,
     CONF_EXTERNAL_TEMP_SENSOR,
     CONF_TARGET_TEMP_SELECTOR,

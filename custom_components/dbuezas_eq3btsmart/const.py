@@ -10,7 +10,7 @@ from homeassistant.components.climate.const import (
     PRESET_ECO,
 )
 
-DOMAIN = "dbuezas_eq3btsmart"
+DOMAIN = "eq3btsmart"
 
 EQ_TO_HA_HVAC: dict[Mode, HVACMode] = {
     Mode.Unknown: HVACMode.HEAT,

@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from dbuezas_eq3btsmart.const import (
+from .const import (
     CONF_ADAPTER,
     CONF_STAY_CONNECTED,
     DEFAULT_ADAPTER,

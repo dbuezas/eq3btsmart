@@ -12,7 +12,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import selector
 
-from dbuezas_eq3btsmart.const import (
+from .const import (
     CONF_ADAPTER,
     CONF_CURRENT_TEMP_SELECTOR,
     CONF_DEBUG_MODE,
