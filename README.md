@@ -124,9 +124,13 @@ We recommend using VS Code as IDE.
 * Install the [poetry](https://python-poetry.org/) dependency management tool and add it to your `PATH`
 * Run `poetry config virtualenvs.in-project true` to have `poetry` create the virtual environment inside the project directory
     > *This is recommended for compatibility with VS Code*
-* Run `poetry install --no-root --with dev` to install dependencies and setup the virtual environment
+* Run `poetry install --with dev` to install dependencies and setup the virtual environment
 * Install the recommended extensions in VS Code
 * Select the Python interpreter to be `.venv/bin/python.exe` (Linux) or `.venv/Scripts/python.exe` (Windows) in VS Code
 
 Your environment should now be setup to contain all dev and non-dev dependencies and VS Code will automatically highlight and fix issues detected by `ruff` and `mypy`.
 
+To setup `pre-commit` for automatic issue detection while committing you need to run the following commands:
+* `poetry run pre-commit install`
+* `poetry run pre-commit install --hook-type commit-msg`
+* `poetry run pre-commit install-hooks`
