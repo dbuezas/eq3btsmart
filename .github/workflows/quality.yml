@@ -78,7 +78,7 @@ jobs:
 
       - name: Run ruff
         run: |
-          poetry run ruff . --check
+          poetry run ruff eq3btsmart custom_components/eq3btsmart
 
   mypy:
     needs: cache
