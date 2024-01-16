@@ -1,0 +1,129 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_output.outputs.version }}
+      upload_url: ${{ steps.set_output.outputs.upload_url }}
+    env:
+      VERSION: ""
+      UPLOAD_URL: ""
+    steps:
+      - name: Get version and upload url from release
+        if: github.event_name == 'release'
+        run: |
+          echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+          echo "UPLOAD_URL=${{ github.event.release.upload_url }}" >> $GITHUB_ENV
+
+      - name: Get release from API
+        if: github.event_name == 'workflow_dispatch'
+        id: release_api
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/${{ github.repository }}/releases/latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Parse API response
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "VERSION=${{ fromJson(steps.release_api.outputs.data).tag_name }}" >> $GITHUB_ENV
+          echo "UPLOAD_URL=${{ fromJson(steps.release_api.outputs.data).upload_url }}" >> $GITHUB_ENV
+
+      - name: Log version and upload URL
+        run: |
+          echo "Version: $VERSION"
+          echo "Upload URL: $UPLOAD_URL"
+
+      - name: Fail if no version or no upload URL
+        run: |
+          if [[ -z "$VERSION" || -z "$UPLOAD_URL" ]]; then
+            echo "Missing version or upload URL"
+            exit 1
+          fi
+
+      - name: Set outputs
+        id: set_output
+        run: |
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+
+  package:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Load cached Poetry installation
+        id: cached-poetry
+        uses: actions/cache@v3
+        with:
+          path: ~/.local
+          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install Poetry
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached Poetry venv
+        id: cached-poetry-venv
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: poetry-venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-venv.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Install package
+        run: poetry install --no-interaction
+
+      - name: Set package version
+        run: |
+          poetry version ${{ needs.version.outputs.version }}
+
+      - name: Build package
+        run: |
+          poetry build
+
+      - name: Upload package to pyPI
+        run: |
+          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+          poetry publish
+
+      - name: Upload package to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.version.outputs.upload_url }}
+          asset_path: ./dist/eq3btsmart-${{ needs.version.outputs.version }}.tar.gz
+          asset_name: eq3btsmart-${{ needs.version.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload wheel to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.version.outputs.upload_url }}
+          asset_path: ./dist/eq3btsmart-${{ needs.version.outputs.version }}-py3-none-any.whl
+          asset_name: eq3btsmart-${{ needs.version.outputs.version }}-py3-none-any.whl
+          asset_content_type: application/zip
