@@ -11,58 +11,44 @@ import codecs
 import logging
 import struct
 from datetime import datetime, timedelta
-from enum import IntEnum
+from typing import Any, Callable
 
-from construct import Byte
+from construct import Byte, Container
 from homeassistant.core import HomeAssistant
 
-from .structures import AwayDataAdapter, DeviceId, Schedule, Status
+from eq3btsmart.bleakconnection import BleakConnection
+from eq3btsmart.const import (
+    DEFAULT_AWAY_HOURS,
+    DEFAULT_AWAY_TEMP,
+    EQ3BT_MAX_OFFSET,
+    EQ3BT_MAX_TEMP,
+    EQ3BT_MIN_OFFSET,
+    EQ3BT_MIN_TEMP,
+    EQ3BT_OFF_TEMP,
+    EQ3BT_ON_TEMP,
+    PROP_BOOST,
+    PROP_COMFORT,
+    PROP_COMFORT_ECO_CONFIG,
+    PROP_ECO,
+    PROP_ID_QUERY,
+    PROP_ID_RETURN,
+    PROP_INFO_QUERY,
+    PROP_INFO_RETURN,
+    PROP_LOCK,
+    PROP_MODE_WRITE,
+    PROP_OFFSET,
+    PROP_SCHEDULE_QUERY,
+    PROP_SCHEDULE_RETURN,
+    PROP_TEMPERATURE_WRITE,
+    PROP_WINDOW_OPEN_CONFIG,
+    Mode,
+)
+from eq3btsmart.exceptions import TemperatureException
+from eq3btsmart.structures import AwayDataAdapter, DeviceId, Schedule, Status
 
 _LOGGER = logging.getLogger(__name__)
 
-PROP_ID_QUERY = 0
-PROP_ID_RETURN = 1
-PROP_INFO_QUERY = 3
-PROP_INFO_RETURN = 2
-PROP_COMFORT_ECO_CONFIG = 0x11
-PROP_OFFSET = 0x13
-PROP_WINDOW_OPEN_CONFIG = 0x14
-PROP_SCHEDULE_QUERY = 0x20
-PROP_SCHEDULE_RETURN = 0x21
 
-PROP_MODE_WRITE = 0x40
-PROP_TEMPERATURE_WRITE = 0x41
-PROP_COMFORT = 0x43
-PROP_ECO = 0x44
-PROP_BOOST = 0x45
-PROP_LOCK = 0x80
-
-EQ3BT_AWAY_TEMP = 12.0
-EQ3BT_MIN_TEMP = 5.0
-EQ3BT_MAX_TEMP = 29.5
-EQ3BT_OFF_TEMP = 4.5
-EQ3BT_ON_TEMP = 30.0
-EQ3BT_MIN_OFFSET = -3.5
-EQ3BT_MAX_OFFSET = 3.5
-
-
-class Mode(IntEnum):
-    """Thermostat modes."""
-
-    Unknown = 0
-    Off = 0
-    On = 1
-    Auto = 2
-    Manual = 3
-
-
-class TemperatureException(Exception):
-    """Temperature out of range error."""
-
-    pass
-
-
-# pylint: disable=too-many-instance-attributes
 class Thermostat:
     """Representation of a EQ3 Bluetooth Smart thermostat."""
 
@@ -77,16 +63,13 @@ class Thermostat:
         """Initialize the thermostat."""
 
         self.name = name
-        self._status = None
-        self._presets = None
-        self._device_data = None
-        self._schedule = {}
-        self.default_away_hours: float = 30 * 24
-        self.default_away_temp: float = 12
-
-        from .bleakconnection import BleakConnection
-
-        self._on_update_callbacks = []
+        self._status: Container[Any] | None = None
+        self._presets: Container[Any] | None = None
+        self._device_data: Container[Any] | None = None
+        self._schedule: dict[str, Container[Any]] = {}
+        self.default_away_hours: float = DEFAULT_AWAY_HOURS
+        self.default_away_temp: float = DEFAULT_AWAY_TEMP
+        self._on_update_callbacks: list[Callable] = []
         self._conn = BleakConnection(
             mac=mac,
             name=name,
@@ -96,13 +79,13 @@ class Thermostat:
             callback=self.handle_notification,
         )
 
-    def register_update_callback(self, on_update):
+    def register_update_callback(self, on_update: Callable) -> None:
         self._on_update_callbacks.append(on_update)
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         self._conn.shutdown()
 
-    def _verify_temperature(self, temp):
+    def _verify_temperature(self, temp: float) -> None:
         """Verifies that the temperature is valid.
         :raises TemperatureException: On invalid temperature.
         """
@@ -113,23 +96,26 @@ class Thermostat:
                 )
             )
 
-    def parse_schedule(self, data):
+    def parse_schedule(self, data) -> Container[Any]:
         """Parses the device sent schedule."""
         sched = Schedule.parse(data)
-        if sched == None:
+        if sched is None:
             raise Exception("Parsed empty schedule data")
         _LOGGER.debug("[%s] Got schedule data for day '%s'", self.name, sched.day)
 
         return sched
 
-    def handle_notification(self, data: bytearray):
+    def handle_notification(self, data: bytearray) -> None:
         """Handle Callback from a Bluetooth (GATT) request."""
         _LOGGER.debug("[%s] Received notification from the device.", self.name)
         updated = True
         if data[0] == PROP_INFO_RETURN and data[1] == 1:
             _LOGGER.debug("[%s] Got status: %s", self.name, codecs.encode(data, "hex"))
             self._status = Status.parse(data)
-            assert self._status
+
+            if self._status is None:
+                raise Exception("Parsed empty status data")
+
             self._presets = self._status.presets
             _LOGGER.debug("[%s] Parsed status: %s", self.name, self._status)
 
@@ -153,14 +139,14 @@ class Thermostat:
             for callback in self._on_update_callbacks:
                 callback()
 
-    async def async_query_id(self):
+    async def async_query_id(self) -> None:
         """Query device identification information, e.g. the serial number."""
         _LOGGER.debug("[%s] Querying id..", self.name)
         value = struct.pack("B", PROP_ID_QUERY)
         await self._conn.async_make_request(value)
         _LOGGER.debug("[%s] Finished Querying id..", self.name)
 
-    async def async_update(self):
+    async def async_update(self) -> None:
         """Update the data from the thermostat. Always sets the current time."""
         _LOGGER.debug("[%s] Querying the device..", self.name)
         time = datetime.now()
@@ -177,7 +163,7 @@ class Thermostat:
 
         await self._conn.async_make_request(value)
 
-    async def async_query_schedule(self, day):
+    async def async_query_schedule(self, day: int) -> None:
         _LOGGER.debug("[%s] Querying schedule..", self.name)
 
         if day < 0 or day > 6:
@@ -188,13 +174,13 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def schedule(self):
+    def schedule(self) -> dict[str, Container[Any]]:
         """Returns previously fetched schedule.
         :return: Schedule structure or None if not fetched.
         """
         return self._schedule
 
-    async def async_set_schedule(self, day, hours):
+    async def async_set_schedule(self, day, hours) -> None:
         _LOGGER.debug(
             "[%s] Setting schedule day=[%s], hours=[%s]", self.name, day, hours
         )
@@ -215,12 +201,15 @@ class Thermostat:
             callback()
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float:
         """Return the temperature we try to reach."""
         return self._status.target_temp if self._status else -1
 
-    async def async_set_target_temperature(self, temperature):
+    async def async_set_target_temperature(self, temperature: float | None) -> None:
         """Set new target temperature."""
+        if temperature is None:
+            return
+
         dev_temp = int(temperature * 2)
         if temperature == EQ3BT_OFF_TEMP or temperature == EQ3BT_ON_TEMP:
             dev_temp |= 0x40
@@ -232,9 +221,9 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def mode(self):
+    def mode(self) -> Mode:
         """Return the current operation mode"""
-        if self._status == None:
+        if self._status is None:
             return Mode.Unknown
         if self.target_temperature == EQ3BT_OFF_TEMP:
             return Mode.Off
@@ -244,32 +233,46 @@ class Thermostat:
             return Mode.Manual
         return Mode.Auto
 
-    async def async_set_mode(self, mode):
+    async def async_set_mode(self, mode: Mode) -> None:
         """Set the operation mode."""
         _LOGGER.debug("[%s] Setting new mode: %s", self.name, mode)
 
-        if mode == Mode.Off:
-            return await self.async_set_target_temperature(EQ3BT_OFF_TEMP)
-        if mode == Mode.On:
-            return await self.async_set_target_temperature(EQ3BT_ON_TEMP)
-        if mode == Mode.Auto:
-            return await self._async_set_mode(0)
-        if mode == Mode.Manual:
-            temperature = max(
-                min(self.target_temperature, EQ3BT_MAX_TEMP), EQ3BT_MIN_TEMP
-            )
-            return await self._async_set_mode(0x40 | int(temperature * 2))
+        match mode:
+            case Mode.Off:
+                await self.async_set_target_temperature(EQ3BT_OFF_TEMP)
+            case Mode.On:
+                await self.async_set_target_temperature(EQ3BT_ON_TEMP)
+            case Mode.Auto:
+                await self._async_set_mode(0)
+            case Mode.Manual:
+                temperature = max(
+                    min(self.target_temperature, EQ3BT_MAX_TEMP), EQ3BT_MIN_TEMP
+                )
+                await self._async_set_mode(0x40 | int(temperature * 2))
 
     @property
     def away(self) -> bool | None:
-        """Returns True if the thermostat is in boost mode."""
-        return self._status and self._status.mode.AWAY  # type: ignore
+        """Returns True if the thermostat is in away mode."""
+
+        if self._status is None:
+            return None
+
+        return self.away_end is not None
 
     @property
     def away_end(self) -> datetime | None:
-        return self._status and self._status.away  # type: ignore
+        """Returns the end datetime of the away mode."""
+        if self._status is None:
+            return None
 
-    async def async_set_away_until(self, away_end: datetime, temperature: float):
+        if not isinstance(self._status.away, datetime):
+            return None
+
+        return self._status.away
+
+    async def async_set_away_until(
+        self, away_end: datetime, temperature: float
+    ) -> None:
         """Sets away mode with default temperature."""
 
         # rounding
@@ -279,12 +282,12 @@ class Thermostat:
         _LOGGER.debug(
             "[%s] Setting away until %s, temp %s", self.name, away_end, temperature
         )
-        adapter = AwayDataAdapter(Byte[4])  # type: ignore
+        adapter = AwayDataAdapter(Byte[4])
         packed = adapter.build(away_end)
 
         await self._async_set_mode(0x80 | int(temperature * 2), packed)
 
-    async def async_set_away(self, away: bool):
+    async def async_set_away(self, away: bool) -> None:
         """Sets away mode with default temperature."""
         if not away:
             _LOGGER.debug("[%s] Disabling away, going to auto mode.", self.name)
@@ -294,7 +297,7 @@ class Thermostat:
 
         await self.async_set_away_until(away_end, self.default_away_temp)
 
-    async def _async_set_mode(self, mode, payload=None):
+    async def _async_set_mode(self, mode: int, payload: bytes | None = None) -> None:
         value = struct.pack("BB", PROP_MODE_WRITE, mode)
         if payload:
             value += payload
@@ -303,26 +306,40 @@ class Thermostat:
     @property
     def boost(self) -> bool | None:
         """Returns True if the thermostat is in boost mode."""
-        return self._status and self._status.mode.BOOST  # type: ignore
 
-    async def async_set_boost(self, boost):
+        if self._status is None:
+            return None
+
+        return self._status.mode.BOOST
+
+    async def async_set_boost(self, boost: bool) -> None:
         """Sets boost mode."""
         _LOGGER.debug("[%s] Setting boost mode: %s", self.name, boost)
-        value = struct.pack("BB", PROP_BOOST, bool(boost))
+        value = struct.pack("BB", PROP_BOOST, boost)
         await self._conn.async_make_request(value)
 
     @property
     def valve_state(self) -> int | None:
         """Returns the valve state. Probably reported as percent open."""
-        return self._status and self._status.valve  # type: ignore
+
+        if self._status is None:
+            return None
+
+        return self._status.valve
 
     @property
     def window_open(self) -> bool | None:
         """Returns True if the thermostat reports a open window
         (detected by sudden drop of temperature)"""
-        return self._status and self._status.mode.WINDOW  # type: ignore
 
-    async def async_window_open_config(self, temperature, duration):
+        if self._status is None:
+            return False
+
+        return self._status.mode.WINDOW
+
+    async def async_window_open_config(
+        self, temperature: float, duration: timedelta
+    ) -> None:
         """Configures the window open behavior. The duration is specified in
         5 minute increments."""
         _LOGGER.debug(
@@ -344,37 +361,57 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def window_open_temperature(self):
+    def window_open_temperature(self) -> float | None:
         """The temperature to set when an open window is detected."""
-        return self._presets and self._presets.window_open_temp
+
+        if self._presets is None:
+            return None
+
+        return self._presets.window_open_temp
 
     @property
     def window_open_time(self) -> timedelta | None:
         """Timeout to reset the thermostat after an open window is detected."""
-        return self._presets and self._presets.window_open_time  # type: ignore
+
+        if self._presets is None:
+            return None
+
+        return self._presets.window_open_time
 
     @property
     def dst(self) -> bool | None:
         """Returns True if the thermostat is in Daylight Saving Time."""
-        return self._status and self._status.mode.DST  # type: ignore
+
+        if self._status is None:
+            return None
+
+        return self._status.mode.DST
 
     @property
     def locked(self) -> bool | None:
         """Returns True if the thermostat is locked."""
-        return self._status and self._status.mode.LOCKED  # type: ignore
 
-    async def async_set_locked(self, lock):
+        if self._status is None:
+            return None
+
+        return self._status.mode.LOCKED
+
+    async def async_set_locked(self, lock: bool) -> None:
         """Locks or unlocks the thermostat."""
         _LOGGER.debug("[%s] Setting the lock: %s", self.name, lock)
-        value = struct.pack("BB", PROP_LOCK, bool(lock))
+        value = struct.pack("BB", PROP_LOCK, lock)
         await self._conn.async_make_request(value)
 
     @property
     def low_battery(self) -> bool | None:
         """Returns True if the thermostat reports a low battery."""
-        return self._status and self._status.mode.LOW_BATTERY  # type: ignore
 
-    async def async_temperature_presets(self, comfort, eco):
+        if self._status is None:
+            return None
+
+        return self._status.mode.LOW_BATTERY
+
+    async def async_temperature_presets(self, comfort: float, eco: float) -> None:
         """Set the thermostats preset temperatures comfort (sun) and
         eco (moon)."""
         _LOGGER.debug(
@@ -391,21 +428,33 @@ class Thermostat:
         await self._conn.async_make_request(value)
 
     @property
-    def comfort_temperature(self):
+    def comfort_temperature(self) -> float | None:
         """Returns the comfort temperature preset of the thermostat."""
-        return self._presets and self._presets.comfort_temp
+
+        if self._presets is None:
+            return None
+
+        return self._presets.comfort_temp
 
     @property
-    def eco_temperature(self):
+    def eco_temperature(self) -> float | None:
         """Returns the eco temperature preset of the thermostat."""
-        return self._presets and self._presets.eco_temp
+
+        if self._presets is None:
+            return None
+
+        return self._presets.eco_temp
 
     @property
-    def temperature_offset(self):
+    def temperature_offset(self) -> float | None:
         """Returns the thermostat's temperature offset."""
-        return self._presets and self._presets.offset
 
-    async def async_set_temperature_offset(self, offset):
+        if self._presets is None:
+            return None
+
+        return self._presets.offset
+
+    async def async_set_temperature_offset(self, offset: float) -> None:
         """Sets the thermostat's temperature offset."""
         _LOGGER.debug("[%s] Setting offset: %s", self.name, offset)
         # [-3,5 .. 0  .. 3,5 ]
@@ -422,12 +471,12 @@ class Thermostat:
         value = struct.pack("BB", PROP_OFFSET, values[offset])
         await self._conn.async_make_request(value)
 
-    async def async_activate_comfort(self):
+    async def async_activate_comfort(self) -> None:
         """Activates the comfort temperature."""
         value = struct.pack("B", PROP_COMFORT)
         await self._conn.async_make_request(value)
 
-    async def async_activate_eco(self):
+    async def async_activate_eco(self) -> None:
         """Activates the comfort temperature."""
         value = struct.pack("B", PROP_ECO)
         await self._conn.async_make_request(value)
@@ -435,14 +484,23 @@ class Thermostat:
     @property
     def firmware_version(self) -> str | None:
         """Return the firmware version."""
-        return self._device_data and self._device_data.version  # type: ignore
+
+        if self._device_data is None:
+            return None
+
+        return self._device_data.version
 
     @property
     def device_serial(self) -> str | None:
         """Return the device serial number."""
-        return self._device_data and self._device_data.serial  # type: ignore
+
+        if self._device_data is None:
+            return None
+
+        return self._device_data.serial
 
     @property
-    def mac(self):
+    def mac(self) -> str:
         """Return the mac address."""
+
         return self._conn._mac

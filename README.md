@@ -22,13 +22,13 @@ A modernized temporary replacement for the native Home Assistant component.
 4. Click `Add`
 5. Close `Custom Repositories` modal
 6. Click `+ EXPLORE & DOWNLOAD REPOSITORIES`
-7. Search for `dbuezas_eq3btsmart`
+7. Search for `eq3btsmart`
 8. Click `Download`
 9. Restart _Home Assistant_
 
 ### Option 2: Manual copy
 
-1. Copy the `dbuezas_eq3btsmart` folder inside `custom_components` of this repo to `/config/custom_components` in your Home Assistant instance
+1. Copy the `eq3btsmart` folder inside `custom_components` of this repo to `/config/custom_components` in your Home Assistant instance
 2. Restart _Home Assistant_
 
 ## Adding devices
@@ -40,7 +40,7 @@ A modernized temporary replacement for the native Home Assistant component.
 
 <img width="290" alt="image" src="https://user-images.githubusercontent.com/777196/204042753-6d08d4b2-d220-4d9b-9fd9-35ca57b5acc9.png">​
 
-or click `+ ADD INTEGRATION` and search for `dbuezas_eq3btsmart`
+or click `+ ADD INTEGRATION` and search for `eq3btsmart`
 
 <img width="290" alt="image" src="https://user-images.githubusercontent.com/777196/204042799-548a382f-6220-4d9f-a8e8-748ecc0de105.png">
 

@@ -42,11 +42,13 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the EQ3One flow."""
         self.discovery_info = None
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle a flow initialized by the user."""
         _LOGGER.debug("async_step_user: %s", user_input)
 
-        errors = {}
+        errors: dict[str, str] | None = {}
         if user_input is None:
             return self.async_show_form(
                 step_id="user",
@@ -63,7 +65,9 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured(updates=user_input)
         return self.async_create_entry(title=user_input[CONF_NAME], data=user_input)
 
-    async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak):
+    async def async_step_bluetooth(
+        self, discovery_info: BluetoothServiceInfoBleak
+    ) -> FlowResult:
         """Handle bluetooth discovery."""
         await self.async_set_unique_id(format_mac(discovery_info.address))
         self._abort_if_unique_id_configured()
@@ -86,7 +90,7 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return await self.async_step_init()
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Handle a flow start."""
         if self.discovery_info is None:
             # mainly to shut up the type checker

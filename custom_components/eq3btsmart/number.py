@@ -1,21 +1,27 @@
 import logging
 from datetime import timedelta
 
-from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
-from homeassistant.config_entries import ConfigEntry
+from eq3btsmart import Thermostat
+from eq3btsmart.const import (
+    EQ3BT_MAX_OFFSET,
+    EQ3BT_MAX_TEMP,
+    EQ3BT_MIN_OFFSET,
+    EQ3BT_MIN_TEMP,
+)
+from homeassistant.components.number import (
+    NumberDeviceClass,
+    NumberEntity,
+    NumberMode,
+    RestoreNumber,
+)
+from homeassistant.config_entries import ConfigEntry, UndefinedType
+from homeassistant.const import UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .python_eq3bt.eq3bt.eq3btsmart import (
-    EQ3BT_MAX_OFFSET,
-    EQ3BT_MAX_TEMP,
-    EQ3BT_MIN_OFFSET,
-    EQ3BT_MIN_TEMP,
-    Thermostat,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,8 +51,8 @@ class Base(NumberEntity):
         _thermostat.register_update_callback(self.schedule_update_ha_state)
         self._thermostat = _thermostat
         self._attr_has_entity_name = True
-        self._attr_device_class = "temperature"
-        self._attr_native_unit_of_measurement = "°C"
+        self._attr_device_class = NumberDeviceClass.TEMPERATURE
+        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_native_min_value = EQ3BT_MIN_TEMP
         self._attr_native_max_value = EQ3BT_MAX_TEMP
 
@@ -54,8 +60,10 @@ class Base(NumberEntity):
         self._attr_mode = NumberMode.BOX
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -71,12 +79,16 @@ class ComfortTemperature(Base):
         self._attr_name = "Comfort"
 
     @property
-    def native_value(self):
+    def native_value(self) -> float | None:
         return self._thermostat.comfort_temperature
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_update()  # to ensure the other temp is up to date
         other = self._thermostat.eco_temperature
+
+        if other is None:
+            return
+
         await self._thermostat.async_temperature_presets(comfort=value, eco=other)
 
 
@@ -86,12 +98,16 @@ class EcoTemperature(Base):
         self._attr_name = "Eco"
 
     @property
-    def native_value(self):
+    def native_value(self) -> float | None:
         return self._thermostat.eco_temperature
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_update()  # to ensure the other temp is up to date
         other = self._thermostat.comfort_temperature
+
+        if other is None:
+            return
+
         await self._thermostat.async_temperature_presets(comfort=other, eco=value)
 
 
@@ -103,7 +119,7 @@ class OffsetTemperature(Base):
         self._attr_native_max_value = EQ3BT_MAX_OFFSET
 
     @property
-    def native_value(self):
+    def native_value(self) -> float | None:
         return self._thermostat.temperature_offset
 
     async def async_set_native_value(self, value: float) -> None:
@@ -116,11 +132,15 @@ class WindowOpenTemperature(Base):
         self._attr_name = "Window Open"
 
     @property
-    def native_value(self):
+    def native_value(self) -> float | None:
         return self._thermostat.window_open_temperature
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_update()  # to ensure the other value is up to date
+
+        if self._thermostat.window_open_time is None:
+            return
+
         await self._thermostat.async_window_open_config(
             temperature=value, duration=self._thermostat.window_open_time
         )
@@ -136,11 +156,13 @@ class WindowOpenTimeout(NumberEntity):
         self._attr_native_min_value = 0
         self._attr_native_max_value = 60
         self._attr_native_step = 5
-        self._attr_native_unit_of_measurement = "minutes"
+        self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -150,13 +172,18 @@ class WindowOpenTimeout(NumberEntity):
         )
 
     @property
-    def native_value(self):
+    def native_value(self) -> float | None:
         if self._thermostat.window_open_time is None:
             return None
+
         return self._thermostat.window_open_time.total_seconds() / 60
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_update()  # to ensure the other value is up to date
+
+        if self._thermostat.window_open_temperature is None:
+            return
+
         await self._thermostat.async_window_open_config(
             temperature=self._thermostat.window_open_temperature,
             duration=timedelta(minutes=value),
@@ -172,11 +199,13 @@ class AwayForHours(RestoreNumber):
         self._attr_native_min_value = 0.5
         self._attr_native_max_value = 1000000
         self._attr_native_step = 0.5
-        self._attr_native_unit_of_measurement = "hours"
+        self._attr_native_unit_of_measurement = UnitOfTime.HOURS
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -189,7 +218,7 @@ class AwayForHours(RestoreNumber):
         """Restore last state."""
 
         data = await self.async_get_last_number_data()
-        if data and data.native_value != None:
+        if data and data.native_value is not None:
             self._thermostat.default_away_hours = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
@@ -206,8 +235,10 @@ class AwayTemperature(Base, RestoreNumber):
         self._attr_name = "Away"
 
     @property
-    def unique_id(self) -> str:
-        assert self.name
+    def unique_id(self) -> str | None:
+        if self.name is None or isinstance(self.name, UndefinedType):
+            return None
+
         return format_mac(self._thermostat.mac) + "_" + self.name
 
     @property
@@ -219,7 +250,7 @@ class AwayTemperature(Base, RestoreNumber):
     async def async_added_to_hass(self) -> None:
         """Restore last state."""
         data = await self.async_get_last_number_data()
-        if data and data.native_value != None:
+        if data and data.native_value is not None:
             self._thermostat.default_away_temp = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:

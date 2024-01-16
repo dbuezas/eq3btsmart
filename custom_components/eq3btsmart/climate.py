@@ -1,12 +1,15 @@
-"""Support for dbuezas_eQ-3 Bluetooth Smart thermostats."""
+"""Support for eQ-3 Bluetooth Smart thermostats."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 from datetime import timedelta
+from typing import Callable
 
 import voluptuous as vol
+from eq3btsmart import Thermostat
+from eq3btsmart.const import EQ3BT_MAX_TEMP, EQ3BT_OFF_TEMP, Mode
 from homeassistant.components.climate import ClimateEntity, HVACMode
 from homeassistant.components.climate.const import (
     ATTR_HVAC_MODE,
@@ -42,12 +45,6 @@ from .const import (
     CurrentTemperatureSelector,
     Preset,
     TargetTemperatureSelector,
-)
-from .python_eq3bt.eq3bt.eq3btsmart import (
-    EQ3BT_MAX_TEMP,
-    EQ3BT_OFF_TEMP,
-    Mode,
-    Thermostat,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,10 +102,10 @@ class EQ3Climate(ClimateEntity):
         self._conf_current_temp_selector = conf_current_temp_selector
         self._conf_target_temp_selector = conf_target_temp_selector
         self._conf_external_temp_sensor = conf_external_temp_sensor
-        self._target_temperature_to_set = None
+        self._target_temperature_to_set: float | None = None
         self._is_setting_temperature = False
         self._is_available = False
-        self._cancel_timer = None
+        self._cancel_timer: Callable[[], None] | None = None
         # This is the main entity of the device and should use the device name.
         # See https://developers.home-assistant.io/docs/core/entity#has_entity_name-true-mandatory-for-new-integrations
         self._attr_has_entity_name = True
@@ -138,11 +135,12 @@ class EQ3Climate(ClimateEntity):
         if self._cancel_timer:
             self._cancel_timer()
 
-    async def _async_scan_loop(self, now=None):
+    async def _async_scan_loop(self, now=None) -> None:
         await self.async_scan()
         if self._platform_state != EntityPlatformState.REMOVED:
+            delay = timedelta(minutes=self._scan_interval)
             self._cancel_timer = async_call_later(
-                self.hass, timedelta(minutes=self._scan_interval), self._async_scan_loop
+                self.hass, delay, self._async_scan_loop
             )
 
     @callback
@@ -166,7 +164,7 @@ class EQ3Climate(ClimateEntity):
         return self._is_available
 
     @property
-    def hvac_action(self) -> str | None:
+    def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation."""
         if self._thermostat.mode == Mode.Off:
             return HVACAction.OFF
@@ -175,7 +173,7 @@ class EQ3Climate(ClimateEntity):
         return HVACAction.HEATING
 
     @property
-    def current_temperature(self):
+    def current_temperature(self) -> float | None:
         """Can not report temperature, so return target_temperature."""
         if self._conf_current_temp_selector == CurrentTemperatureSelector.NOTHING:
             return None
@@ -195,9 +193,10 @@ class EQ3Climate(ClimateEntity):
                     return float(state.state)
                 except ValueError:
                     pass
+        return None
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
         match self._conf_target_temp_selector:
             case TargetTemperatureSelector.TARGET:
@@ -205,14 +204,15 @@ class EQ3Climate(ClimateEntity):
             case TargetTemperatureSelector.LAST_REPORTED:
                 return self._thermostat.target_temperature
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
         # We can also set the HVAC mode when setting the temperature.
         # This needs to be done before changing the temperature because
         # changing the mode might change the temperature.
         if ATTR_HVAC_MODE in kwargs:
             mode = kwargs.get(ATTR_HVAC_MODE)
-            assert mode != None
+            if mode is None:
+                return
             # Setting the mode to off while change the tempreature doesn't make sense.
             if mode != HVACMode.OFF:
                 await self.async_set_hvac_mode(mode)
@@ -242,21 +242,21 @@ class EQ3Climate(ClimateEntity):
             self._target_temperature_to_set = previous_temperature
             self.async_schedule_update_ha_state()
 
-    async def async_set_temperature_now(self):
+    async def async_set_temperature_now(self) -> None:
         await self._thermostat.async_set_target_temperature(
             self._target_temperature_to_set
         )
         self._is_setting_temperature = False
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> HVACMode | None:
         """Return the current operation mode."""
-        if self._thermostat.mode == None:
+        if self._thermostat.mode is None:
             return None
 
         return EQ_TO_HA_HVAC[self._thermostat.mode]
 
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set operation mode."""
         if hvac_mode == HVACMode.OFF:
             self._target_temperature_to_set = EQ3BT_OFF_TEMP
@@ -269,7 +269,7 @@ class EQ3Climate(ClimateEntity):
         await self._thermostat.async_set_mode(HA_TO_EQ_HVAC[hvac_mode])
 
     @property
-    def preset_mode(self):
+    def preset_mode(self) -> str | None:
         """Return the current preset mode, e.g., home, away, temp.
         Requires SUPPORT_PRESET_MODE.
         """
@@ -289,7 +289,7 @@ class EQ3Climate(ClimateEntity):
             return Preset.OPEN
         return PRESET_NONE
 
-    async def async_set_preset_mode(self, preset_mode):
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         match preset_mode:
             case Preset.BOOST:
@@ -333,7 +333,7 @@ class EQ3Climate(ClimateEntity):
             connections={(CONNECTION_BLUETOOTH, self._thermostat.mac)},
         )
 
-    async def async_scan(self):
+    async def async_scan(self) -> None:
         """Update the data from the thermostat."""
         try:
             await self._thermostat.async_update()

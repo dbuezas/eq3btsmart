@@ -1,11 +1,8 @@
 """Constants for EQ3 Bluetooth Smart Radiator Valves."""
 from enum import Enum
 
+from eq3btsmart.const import Mode
 from homeassistant.components.climate import HVACMode
-
-from .python_eq3bt.eq3bt.eq3btsmart import Mode
-
-DOMAIN = "dbuezas_eq3btsmart"
 from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_BOOST,
@@ -13,7 +10,9 @@ from homeassistant.components.climate.const import (
     PRESET_ECO,
 )
 
-EQ_TO_HA_HVAC = {
+DOMAIN = "eq3btsmart"
+
+EQ_TO_HA_HVAC: dict[Mode, HVACMode] = {
     Mode.Unknown: HVACMode.HEAT,
     Mode.Off: HVACMode.OFF,
     Mode.On: HVACMode.HEAT,

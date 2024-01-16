@@ -1,11 +1,7 @@
-"""
-Bleak connection backend.
-This creates a new event loop that is used to integrate bleak's
-asyncio functions to synchronous architecture of python-eq3bt.
-"""
+"""Bleak connection backend."""
 import asyncio
 import logging
-from typing import cast
+from typing import Callable, cast
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -14,20 +10,18 @@ from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 
-from ...const import Adapter
-from . import BackendException
-
-REQUEST_TIMEOUT = 5
-RETRY_BACK_OFF_FACTOR = 0.25
-RETRIES = 14
-
-# Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
-PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
-PROP_NTFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
+from eq3btsmart.const import (
+    PROP_NTFY_UUID,
+    PROP_WRITE_UUID,
+    REQUEST_TIMEOUT,
+    RETRIES,
+    RETRY_BACK_OFF_FACTOR,
+    Adapter,
+)
+from eq3btsmart.exceptions import BackendException
 
 # bleak backends are very loud on debug, this reduces the log spam when using --debug
 # logging.getLogger("bleak.backends").setLevel(logging.WARNING)
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -52,22 +46,22 @@ class BleakConnection:
         self._callback = callback
         self._notify_event = asyncio.Event()
         self._terminate_event = asyncio.Event()
-        self.rssi = None
+        self.rssi: int | None = None
         self._lock = asyncio.Lock()
         self._conn: BleakClient | None = None
         self._ble_device: BLEDevice | None = None
-        self._connection_callbacks = []
+        self._connection_callbacks: list[Callable] = []
         self.retries = 0
         self._round_robin = 0
 
-    def register_connection_callback(self, callback) -> None:
+    def register_connection_callback(self, callback: Callable) -> None:
         self._connection_callbacks.append(callback)
 
     def _on_connection_event(self) -> None:
         for callback in self._connection_callbacks:
             callback()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         _LOGGER.debug(
             "[%s] closing connections",
             self._name,
@@ -75,18 +69,18 @@ class BleakConnection:
         self._terminate_event.set()
         self._notify_event.set()
 
-    async def throw_if_terminating(self):
+    async def throw_if_terminating(self) -> None:
         if self._terminate_event.is_set():
             if self._conn:
                 await self._conn.disconnect()
             raise Exception("Connection cancelled by shutdown")
 
-    async def async_get_connection(self):
+    async def async_get_connection(self) -> BleakClient:
         if self._adapter == Adapter.AUTO:
             self._ble_device = bluetooth.async_ble_device_from_address(
                 self._hass, self._mac, connectable=True
             )
-            if self._ble_device == None:
+            if self._ble_device is None:
                 raise Exception("Device not found")
 
             self._conn = await establish_connection(
@@ -140,7 +134,9 @@ class BleakConnection:
             raise BackendException("Can't connect")
         return self._conn
 
-    async def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray):
+    async def on_notification(
+        self, handle: BleakGATTCharacteristic, data: bytearray
+    ) -> None:
         """Handle Callback from a Bluetooth (GATT) request."""
         if PROP_NTFY_UUID == handle.uuid:
             self._notify_event.set()
@@ -153,7 +149,7 @@ class BleakConnection:
                 handle.uuid,
             )
 
-    async def async_make_request(self, value, retries=RETRIES):
+    async def async_make_request(self, value, retries=RETRIES) -> None:
         """Write a GATT Command with callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
             try:
@@ -162,7 +158,7 @@ class BleakConnection:
                 self.retries = 0
                 self._on_connection_event()
 
-    async def _async_make_request_try(self, value, retries):
+    async def _async_make_request_try(self, value, retries) -> None:
         self.retries = 0
         while True:
             self.retries += 1
