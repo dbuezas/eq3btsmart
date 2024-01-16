@@ -128,7 +128,7 @@ class BleakConnection:
 
         self._on_connection_event()
 
-        if self._conn.is_connected:
+        if self._conn is not None and self._conn.is_connected:
             _LOGGER.debug("[%s] Connected", self._name)
         else:
             raise BackendException("Can't connect")
