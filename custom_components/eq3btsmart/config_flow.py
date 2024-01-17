@@ -49,7 +49,7 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle a flow initialized by the user."""
 
-        _LOGGER.debug("async_step_user: %s", user_input)
+        _LOGGER.debug(f"async_step_user: {user_input}")
 
         errors: dict[str, str] | None = {}
         if user_input is None:
@@ -72,9 +72,7 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
 
         _LOGGER.debug(
-            "Discovered eQ3 thermostat using bluetooth: %s, %s",
-            discovery_info,
-            discovery_info.device.name,
+            f"Discovered eQ3 thermostat using bluetooth: {discovery_info}, {discovery_info.device.name}",
         )
 
         self.discovery_info = discovery_info

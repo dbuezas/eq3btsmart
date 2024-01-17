@@ -183,10 +183,7 @@ class FirmwareVersionSensor(Base):
             )
 
         _LOGGER.debug(
-            "[%s] firmware: %s serial: %s",
-            self._thermostat.name,
-            self._thermostat.firmware_version,
-            self._thermostat.device_serial,
+            f"[{self._eq3_config.name}] firmware: {self._thermostat.firmware_version} serial: {self._thermostat.device_serial}",
         )
 
     @property

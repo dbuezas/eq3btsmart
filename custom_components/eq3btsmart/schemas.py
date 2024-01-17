@@ -207,7 +207,9 @@ def schema_options(
 
 SCHEMA_OPTIONS = schema_options
 
-SCHEMA_SET_AWAY_UNTIL = {
-    vol.Required("away_until"): cv.datetime,
-    vol.Required("temperature"): vol.Range(min=EQ3BT_OFF_TEMP, max=EQ3BT_MAX_TEMP),
-}
+SCHEMA_SET_AWAY_UNTIL = cv.make_entity_service_schema(
+    {
+        vol.Required("away_until"): cv.datetime,
+        vol.Required("temperature"): vol.Range(min=EQ3BT_OFF_TEMP, max=EQ3BT_MAX_TEMP),
+    }
+)

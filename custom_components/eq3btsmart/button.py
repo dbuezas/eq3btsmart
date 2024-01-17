@@ -15,7 +15,12 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ENTITY_NAME_FETCH, ENTITY_NAME_FETCH_SCHEDULE
+from .const import (
+    DOMAIN,
+    ENTITY_NAME_FETCH,
+    ENTITY_NAME_FETCH_SCHEDULE,
+    SERVICE_SET_SCHEDULE,
+)
 from .schemas import SCHEMA_SCHEDULE_SET
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,9 +47,9 @@ async def async_setup_entry(
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        "set_schedule",
+        SERVICE_SET_SCHEDULE,
         SCHEMA_SCHEDULE_SET,
-        "set_schedule",
+        SERVICE_SET_SCHEDULE,
     )
 
 
@@ -84,15 +89,13 @@ class FetchScheduleButton(Base):
             await self._thermostat.async_query_schedule(x)
 
         _LOGGER.debug(
-            "[%s] schedule (day %s): %s",
-            self._thermostat.name,
-            self._thermostat.schedule,
+            f"[{self._eq3_config.name}] schedule: {self._thermostat.schedule}",
         )
 
     async def set_schedule(self, **kwargs) -> None:
         """Called when the set_schedule service is invoked."""
 
-        _LOGGER.debug("[%s] set_schedule (day %s)", self._thermostat.name, kwargs)
+        _LOGGER.debug(f"[{self._eq3_config.name}] set_schedule: {kwargs}")
 
         for day in kwargs["days"]:
             times = [

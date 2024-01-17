@@ -87,9 +87,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         self._attr_should_poll = False
 
         _LOGGER.debug(
-            "[%s] created climate entity %s, %s, %s",
-            self.name,
-            self._eq3_config.external_temp_sensor,
+            f"[{self._eq3_config.name}] created climate entity",
         )
 
     async def async_added_to_hass(self) -> None:
@@ -121,7 +119,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
         if self.entity_id is None:
             _LOGGER.warn(
-                "[%s] Updated but the entity is not loaded", self._thermostat.name
+                f"[{self._eq3_config.name}] Updated but the entity is not loaded",
             )
             return
 
@@ -188,8 +186,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 await self.async_set_hvac_mode(mode)
             else:
                 _LOGGER.warning(
-                    "[%s] Can't change temperature while changing HVAC mode to off. Ignoring mode change.",
-                    self._thermostat.name,
+                    f"[{self._eq3_config.name}] Can't change temperature while changing HVAC mode to off. Ignoring mode change.",
                 )
 
         temperature = kwargs.get(ATTR_TEMPERATURE)
@@ -311,7 +308,5 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             self._is_available = False
             self.schedule_update_ha_state()
             _LOGGER.error(
-                "[%s] Error updating: %s",
-                self._thermostat.name,
-                ex,
+                f"[{self._eq3_config.name}] Error updating: {ex}",
             )

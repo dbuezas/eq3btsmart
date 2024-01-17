@@ -80,6 +80,9 @@ ENTITY_ICON_AWAY_SWITCH = "mdi:lock"
 ENTITY_ICON_BOOST_SWITCH = "mdi:speedometer"
 ENTITY_ICON_CONNECTION = "mdi:bluetooth"
 
+SERVICE_SET_AWAY_UNTIL = "set_away_until"
+SERVICE_SET_SCHEDULE = "set_schedule"
+
 
 class Adapter(str, Enum):
     AUTO = "AUTO"

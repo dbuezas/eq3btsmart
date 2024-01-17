@@ -8,7 +8,6 @@ from eq3btsmart import Thermostat
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
@@ -22,6 +21,7 @@ from .const import (
     ENTITY_NAME_AWAY_SWITCH,
     ENTITY_NAME_BOOST_SWITCH,
     ENTITY_NAME_CONNECTION,
+    SERVICE_SET_AWAY_UNTIL,
 )
 from .models import Eq3Config, Eq3ConfigEntry
 from .schemas import SCHEMA_SET_AWAY_UNTIL
@@ -50,9 +50,9 @@ async def async_setup_entry(
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        "set_away_until",
-        cv.make_entity_service_schema(SCHEMA_SET_AWAY_UNTIL),
-        "set_away_until",
+        SERVICE_SET_AWAY_UNTIL,
+        SCHEMA_SET_AWAY_UNTIL,
+        SERVICE_SET_AWAY_UNTIL,
     )
 
 
