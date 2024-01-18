@@ -1,7 +1,7 @@
 """Constants for EQ3 Bluetooth Smart Radiator Valves."""
 from enum import Enum
 
-from eq3btsmart.const import Mode
+from eq3btsmart.const import Adapter, Mode
 from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate.const import (
     PRESET_AWAY,
@@ -82,11 +82,6 @@ ENTITY_ICON_CONNECTION = "mdi:bluetooth"
 
 SERVICE_SET_AWAY_UNTIL = "set_away_until"
 SERVICE_SET_SCHEDULE = "set_schedule"
-
-
-class Adapter(str, Enum):
-    AUTO = "AUTO"
-    LOCAL = "LOCAL"
 
 
 class CurrentTemperatureSelector(str, Enum):

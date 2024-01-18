@@ -49,7 +49,7 @@ class Base(Eq3Entity, LockEntity):
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
 
 

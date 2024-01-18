@@ -1,6 +1,6 @@
 """Constants for the eq3btsmart library."""
 
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, IntFlag
 
 PROP_ID_QUERY = 0
 PROP_ID_RETURN = 1
@@ -44,14 +44,47 @@ DEFAULT_AWAY_HOURS = 30 * 24
 DEFAULT_AWAY_TEMP = 12
 
 
-class Mode(IntEnum):
-    """Thermostat modes."""
+class ScheduleCommand(IntEnum):
+    """Schedule commands."""
 
-    Unknown = 0
-    Off = 0
-    On = 1
-    Auto = 2
-    Manual = 3
+    WRITE = PROP_SCHEDULE_SET
+    RESPONSE = PROP_SCHEDULE_RETURN
+
+
+class WeekDay(IntEnum):
+    """Weekdays."""
+
+    SATURDAY = 0
+    SUNDAY = 1
+    MONDAY = 2
+    TUESDAY = 3
+    WEDNESDAY = 4
+    THURSDAY = 5
+    FRIDAY = 6
+
+
+class OperationMode(IntEnum):
+    """Operation modes."""
+
+    UNKNOWN = 0
+    AUTO = 1
+    MANUAL = 2
+    ON = 3
+    OFF = 4
+
+
+class DeviceModeFlags(IntFlag):
+    """Device modes."""
+
+    AUTO = 0x00  # always True, doesnt affect building
+    MANUAL = 0x01
+    AWAY = 0x02
+    BOOST = 0x04
+    DST = 0x08
+    WINDOW = 0x10
+    LOCKED = 0x20
+    UNKNOWN = 0x40
+    LOW_BATTERY = 0x80
 
 
 class Adapter(str, Enum):

@@ -64,12 +64,12 @@ class Base(Eq3Entity, BinarySensorEntity):
         if self.name is None or isinstance(self.name, UndefinedType):
             return None
 
-        return format_mac(self._thermostat.mac) + "_" + self.name
+        return format_mac(self._eq3_config.mac_address) + "_" + self.name
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
 
 
@@ -134,7 +134,7 @@ class BatterySensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         return self._thermostat.low_battery
 
 
@@ -149,7 +149,7 @@ class WindowOpenSensor(Base):
         self._attr_device_class = BinarySensorDeviceClass.WINDOW
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         return self._thermostat.window_open
 
 
@@ -164,5 +164,5 @@ class DSTSensor(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool | None:
         return self._thermostat.dst

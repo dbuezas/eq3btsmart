@@ -66,12 +66,12 @@ class Base(Eq3Entity, ButtonEntity):
         if self.name is None or isinstance(self.name, UndefinedType):
             return None
 
-        return format_mac(self._thermostat.mac) + "_" + self.name
+        return format_mac(self._eq3_config.mac_address) + "_" + self.name
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
 
 

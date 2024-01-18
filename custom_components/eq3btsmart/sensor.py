@@ -169,17 +169,17 @@ class FirmwareVersionSensor(Base):
             await self._thermostat.async_query_id()
         except Exception as e:
             _LOGGER.error(
-                f"[{self._thermostat.name}] Error fetching serial number: {e}"
+                f"[{self._eq3_config.name}] Error fetching serial number: {e}"
             )
             return
 
         device_registry = dr.async_get(self.hass)
         device = device_registry.async_get_device(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
         if device:
             device_registry.async_update_device(
-                device_id=device.id, sw_version=self._thermostat.firmware_version
+                device_id=device.id, sw_version=str(self._thermostat.firmware_version)
             )
 
         _LOGGER.debug(
@@ -188,7 +188,7 @@ class FirmwareVersionSensor(Base):
 
     @property
     def state(self) -> str | None:
-        return self._thermostat.firmware_version
+        return str(self._thermostat.firmware_version)
 
 
 class MacSensor(Base):
@@ -202,7 +202,7 @@ class MacSensor(Base):
 
     @property
     def state(self) -> str | None:
-        return self._thermostat.mac
+        return self._eq3_config.mac_address
 
 
 class RetriesSensor(Base):

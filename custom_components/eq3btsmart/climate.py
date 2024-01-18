@@ -207,7 +207,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         try:
             await self.async_set_temperature_now()
         except Exception as ex:
-            _LOGGER.error(f"[{self._thermostat.name}] Failed setting temperature: {ex}")
+            _LOGGER.error(f"[{self._eq3_config.name}] Failed setting temperature: {ex}")
             self._target_temperature_to_set = previous_temperature
             self.async_schedule_update_ha_state()
 
@@ -289,11 +289,11 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            name=self._thermostat.name,
+            name=self._eq3_config.name,
             manufacturer=MANUFACTURER,
             model=DEVICE_MODEL,
             identifiers={(DOMAIN, self._eq3_config.mac_address)},
-            sw_version=self._thermostat.firmware_version,
+            sw_version=str(self._thermostat.firmware_version),
             connections={(CONNECTION_BLUETOOTH, self._eq3_config.mac_address)},
         )
 

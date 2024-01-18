@@ -3,6 +3,7 @@
 from typing import Any
 
 from eq3btsmart import Thermostat
+from eq3btsmart.thermostat_config import ThermostatConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
@@ -67,11 +68,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         scan_interval=scan_interval,
     )
 
-    thermostat = Thermostat(
-        mac=mac_address,
+    thermostat_config = ThermostatConfig(
+        mac_address=mac_address,
         name=name,
         adapter=adapter,
         stay_connected=stay_connected,
+    )
+    thermostat = Thermostat(
+        thermostat_config=thermostat_config,
         hass=hass,
     )
 

@@ -1,25 +1,25 @@
-""" Contains construct adapters and structures. """
+"""Structures for the eQ-3 Bluetooth Smart Thermostat."""
 from datetime import datetime, time, timedelta
 
+from attr import dataclass
 from construct import (
     Adapter,
     Bytes,
     Const,
-    Enum,
-    FlagsEnum,
     GreedyRange,
     IfThenElse,
     Int8ub,
     Optional,
-    Struct,
 )
+from construct_typed import DataclassMixin, DataclassStruct, TEnum, TFlagsEnum, csfield
 
 from eq3btsmart.const import (
     HOUR_24_PLACEHOLDER,
-    NAME_TO_CMD,
-    NAME_TO_DAY,
     PROP_ID_RETURN,
     PROP_INFO_RETURN,
+    DeviceModeFlags,
+    ScheduleCommand,
+    WeekDay,
 )
 
 
@@ -81,20 +81,6 @@ class TempOffsetAdapter(Adapter):
         )
 
 
-ModeFlags = "ModeFlags" / FlagsEnum(
-    Int8ub,
-    AUTO=0x00,  # always True, doesnt affect building
-    MANUAL=0x01,
-    AWAY=0x02,
-    BOOST=0x04,
-    DST=0x08,
-    WINDOW=0x10,
-    LOCKED=0x20,
-    UNKNOWN=0x40,
-    LOW_BATTERY=0x80,
-)
-
-
 class AwayDataAdapter(Adapter):
     """Adapter to encode and decode away data."""
 
@@ -126,46 +112,63 @@ class DeviceSerialAdapter(Adapter):
         return bytearray(n - 0x30 for n in obj).decode()
 
 
-Status = "Status" / Struct(
-    "cmd" / Const(PROP_INFO_RETURN, Int8ub),
-    Const(0x01, Int8ub),
-    "mode" / ModeFlags,
-    "valve" / Int8ub,
-    Const(0x04, Int8ub),
-    "target_temp" / TempAdapter(Int8ub),
-    "away"
-    / IfThenElse(
-        lambda ctx: ctx.mode.AWAY, AwayDataAdapter(Bytes(4)), Optional(Bytes(4))
-    ),
-    "presets"
-    / Optional(
-        Struct(
-            "window_open_temp" / TempAdapter(Int8ub),
-            "window_open_time" / WindowOpenTimeAdapter(Int8ub),
-            "comfort_temp" / TempAdapter(Int8ub),
-            "eco_temp" / TempAdapter(Int8ub),
-            "offset" / TempOffsetAdapter(Int8ub),
-        )
-    ),
-)
+@dataclass
+class PresetsStruct(DataclassMixin):
+    """Structure for presets data."""
 
-Schedule = "Schedule" / Struct(
-    "cmd" / Enum(Int8ub, **NAME_TO_CMD),
-    "day" / Enum(Int8ub, **NAME_TO_DAY),
-    "hours"
-    / GreedyRange(
-        Struct(
-            "target_temp" / TempAdapter(Int8ub),
-            "next_change_at" / TimeAdapter(Int8ub),
-        )
-    ),
-)
+    window_open_temp: float = csfield(TempAdapter(Int8ub))
+    window_open_time: timedelta = csfield(WindowOpenTimeAdapter(Int8ub))
+    comfort_temp: float = csfield(TempAdapter(Int8ub))
+    eco_temp: float = csfield(TempAdapter(Int8ub))
+    offset: float = csfield(TempOffsetAdapter(Int8ub))
 
-DeviceId = "DeviceId" / Struct(
-    "cmd" / Const(PROP_ID_RETURN, Int8ub),
-    "version" / Int8ub,
-    Int8ub,
-    Int8ub,
-    "serial" / DeviceSerialAdapter(Bytes(10)),
-    Int8ub,
-)
+
+@dataclass
+class StatusStruct(DataclassMixin):
+    """Structure for status data."""
+
+    cmd: int = csfield(Const(PROP_INFO_RETURN, Int8ub))
+    const_1: int = csfield(Const(0x01, Int8ub))
+    mode: DeviceModeFlags = csfield(TFlagsEnum(Int8ub, DeviceModeFlags))
+    valve: int = csfield(Int8ub)
+    const_2: int = csfield(Const(0x04, Int8ub))
+    target_temp: float = csfield(TempAdapter(Int8ub))
+    away: datetime | None = csfield(
+        IfThenElse(
+            lambda ctx: ctx.mode & DeviceModeFlags.AWAY,
+            AwayDataAdapter(Bytes(4)),
+            Optional(Bytes(4)),
+        )
+    )
+    presets: PresetsStruct | None = csfield(Optional(DataclassStruct(PresetsStruct)))
+
+
+@dataclass
+class ScheduleEntryStruct(DataclassMixin):
+    """Structure for schedule entry data."""
+
+    target_temp: float = csfield(TempAdapter(Int8ub))
+    next_change_at: time = csfield(TimeAdapter(Int8ub))
+
+
+@dataclass
+class ScheduleStruct(DataclassMixin):
+    """Structure for schedule data."""
+
+    cmd: ScheduleCommand = csfield(TEnum(Int8ub, ScheduleCommand))
+    day: WeekDay = csfield(TEnum(Int8ub, WeekDay))
+    hours: list[ScheduleEntryStruct] = csfield(
+        GreedyRange(DataclassStruct(ScheduleEntryStruct))
+    )
+
+
+@dataclass
+class DeviceIdStruct(DataclassMixin):
+    """Structure for device data."""
+
+    cmd: int = csfield(Const(PROP_ID_RETURN, Int8ub))
+    version: int = csfield(Int8ub)
+    unknown_1: int = csfield(Int8ub)
+    unknown_2: int = csfield(Int8ub)
+    serial: str = csfield(DeviceSerialAdapter(Bytes(10)))
+    unknown_3: int = csfield(Int8ub)
