@@ -97,7 +97,7 @@ class ValveSensor(Base):
 
     @property
     def state(self) -> int | None:
-        return self._thermostat.valve_state
+        return self._thermostat.status.valve
 
 
 class AwayEndSensor(Base):
@@ -112,10 +112,10 @@ class AwayEndSensor(Base):
 
     @property
     def native_value(self) -> datetime | None:
-        if self._thermostat.away_end is None:
+        if self._thermostat.status.away_until is None:
             return None
 
-        return self._thermostat.away_end
+        return self._thermostat.status.away_until.friendly_value
 
 
 class RssiSensor(Base):
@@ -133,6 +133,7 @@ class RssiSensor(Base):
 
     @property
     def state(self) -> int | None:
+        return None
         return self._thermostat._conn.rssi
 
 
@@ -148,7 +149,7 @@ class SerialNumberSensor(Base):
 
     @property
     def state(self) -> str | None:
-        return self._thermostat.device_serial
+        return self._thermostat.device_data.device_serial
 
 
 class FirmwareVersionSensor(Base):
@@ -179,16 +180,17 @@ class FirmwareVersionSensor(Base):
         )
         if device:
             device_registry.async_update_device(
-                device_id=device.id, sw_version=str(self._thermostat.firmware_version)
+                device_id=device.id,
+                sw_version=str(self._thermostat.device_data.firmware_version),
             )
 
         _LOGGER.debug(
-            f"[{self._eq3_config.name}] firmware: {self._thermostat.firmware_version} serial: {self._thermostat.device_serial}",
+            f"[{self._eq3_config.name}] firmware: {self._thermostat.device_data.firmware_version} serial: {self._thermostat.device_data.device_serial}",
         )
 
     @property
     def state(self) -> str | None:
-        return str(self._thermostat.firmware_version)
+        return str(self._thermostat.device_data.firmware_version)
 
 
 class MacSensor(Base):

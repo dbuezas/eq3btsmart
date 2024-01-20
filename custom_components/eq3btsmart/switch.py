@@ -96,10 +96,10 @@ class AwaySwitch(Base):
 
     @property
     def is_on(self) -> bool | None:
-        return self._thermostat.away
+        return self._thermostat.status.is_away
 
     async def set_away_until(self, away_until: datetime, temperature: float) -> None:
-        await self._thermostat.async_set_away_until(away_until, temperature)
+        await self._thermostat.async_set_away(True, away_until, temperature)
 
 
 class BoostSwitch(Base):
@@ -120,7 +120,7 @@ class BoostSwitch(Base):
 
     @property
     def is_on(self) -> bool | None:
-        return self._thermostat.boost
+        return self._thermostat.status.is_boost
 
 
 class ConnectionSwitch(Base):
@@ -138,7 +138,7 @@ class ConnectionSwitch(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self._thermostat._conn.async_make_request("ONLY CONNECT")
+        await self._thermostat._conn.async_make_request()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         if self._thermostat._conn._conn:

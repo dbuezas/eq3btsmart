@@ -2,11 +2,12 @@
 
 import datetime
 import logging
+from typing import Any
 
 from custom_components.eq3btsmart.eq3_entity import Eq3Entity
 from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
-from eq3btsmart.const import HOUR_24_PLACEHOLDER, WeekDay
+from eq3btsmart.const import WeekDay
 from eq3btsmart.models import Schedule, ScheduleDay, ScheduleHour
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
@@ -86,8 +87,7 @@ class FetchScheduleButton(Base):
         self._attr_name = ENTITY_NAME_FETCH_SCHEDULE
 
     async def async_press(self) -> None:
-        for x in range(0, 7):
-            await self._thermostat.async_get_schedule(x)
+        await self._thermostat.async_get_schedule()
 
         _LOGGER.debug(
             f"[{self._eq3_config.name}] schedule: {self._thermostat.schedule}",
@@ -107,7 +107,7 @@ class FetchScheduleButton(Base):
             times = [
                 kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
             ]
-            times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
+            # times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
             temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
 
             for i in range(0, 6):
@@ -117,21 +117,24 @@ class FetchScheduleButton(Base):
                 )
                 schedule_hours.append(schedule_hour)
 
-            schedule.days.append(schedule_day)
+            schedule.schedule_days.append(schedule_day)
 
         await self._thermostat.async_set_schedule(schedule=schedule)
 
     @property
     def extra_state_attributes(self):
         schedule = {}
-        for day in self._thermostat.schedule:
-            day_raw = self._thermostat.schedule[day]
-            day_nice = {"day": day}
-            for i, entry in enumerate(day_raw.hours):
-                day_nice[f"target_temp_{i}"] = entry.target_temp
-                if entry.next_change_at == HOUR_24_PLACEHOLDER:
-                    break
-                day_nice[f"next_change_at_{i}"] = entry.next_change_at.isoformat()
+        for day in self._thermostat.schedule.schedule_days:
+            day_nice: dict[str, Any] = {"day": day}
+            for i, schedule_hour in enumerate(day.schedule_hours):
+                day_nice[
+                    f"target_temp_{i}"
+                ] = schedule_hour.target_temperature.friendly_value
+                # if schedule_hour.next_change_at == HOUR_24_PLACEHOLDER:
+                #     break
+                day_nice[
+                    f"next_change_at_{i}"
+                ] = schedule_hour.next_change_at.friendly_value.isoformat()
             schedule[day] = day_nice
 
         return schedule
@@ -147,4 +150,4 @@ class FetchButton(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
-        await self._thermostat.async_update()
+        await self._thermostat.async_get_info()

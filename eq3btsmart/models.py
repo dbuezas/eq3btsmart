@@ -18,8 +18,8 @@ from eq3btsmart.structures import (
 
 @dataclass
 class DeviceData:
-    firmware_version: int
-    device_serial: str
+    firmware_version: int | None = None
+    device_serial: str | None = None
 
     @classmethod
     def from_device(cls, struct: DeviceIdStruct) -> Self:
@@ -35,24 +35,24 @@ class DeviceData:
 
 @dataclass
 class Status:
-    valve: int
-    target_temperature: Eq3Temperature
-    _operation_mode: OperationMode
-    is_away: bool
-    is_boost: bool
-    is_dst: bool
-    is_window_open: bool
-    is_locked: bool
-    is_low_battery: bool
-    away_datetime: Eq3AwayTime | None
-    window_open_temperature: Eq3Temperature | None
-    window_open_time: Eq3Duration | None
-    comfort_temperature: Eq3Temperature | None
-    eco_temperature: Eq3Temperature | None
-    offset_temperature: Eq3TemperatureOffset | None
+    valve: int | None = None
+    target_temperature: Eq3Temperature | None = None
+    _operation_mode: OperationMode | None = None
+    is_away: bool | None = None
+    is_boost: bool | None = None
+    is_dst: bool | None = None
+    is_window_open: bool | None = None
+    is_locked: bool | None = None
+    is_low_battery: bool | None = None
+    away_until: Eq3AwayTime | None = None
+    window_open_temperature: Eq3Temperature | None = None
+    window_open_time: Eq3Duration | None = None
+    comfort_temperature: Eq3Temperature | None = None
+    eco_temperature: Eq3Temperature | None = None
+    offset_temperature: Eq3TemperatureOffset | None = None
 
     @property
-    def operation_mode(self) -> OperationMode:
+    def operation_mode(self) -> OperationMode | None:
         if self.target_temperature == EQ3BT_OFF_TEMP:
             return OperationMode.OFF
 
@@ -75,7 +75,7 @@ class Status:
             is_window_open=bool(struct.mode & struct.mode.WINDOW),
             is_locked=bool(struct.mode & struct.mode.LOCKED),
             is_low_battery=bool(struct.mode & struct.mode.LOW_BATTERY),
-            away_datetime=struct.away,
+            away_until=struct.away,
             window_open_temperature=struct.presets.window_open_temp
             if struct.presets
             else None,
@@ -123,14 +123,14 @@ class ScheduleDay:
 
 @dataclass
 class Schedule:
-    days: list[ScheduleDay] = field(default_factory=list)
+    schedule_days: list[ScheduleDay] = field(default_factory=list)
 
     def merge(self, other_schedule: Self) -> None:
-        for schedule_day in other_schedule.days:
-            self.days[
+        for schedule_day in other_schedule.schedule_days:
+            self.schedule_days[
                 schedule_day.week_day
             ].schedule_hours = schedule_day.schedule_hours
 
     @classmethod
     def from_bytes(cls, data: bytes) -> Self:
-        return cls(days=[ScheduleDay.from_bytes(data)])
+        return cls(schedule_days=[ScheduleDay.from_bytes(data)])

@@ -2,8 +2,11 @@
 
 from typing import Any
 
+from bleak.backends.device import BLEDevice
+from bleak_retry_connector import NO_RSSI_VALUE
 from eq3btsmart import Thermostat
 from eq3btsmart.thermostat_config import ThermostatConfig
+from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
@@ -74,9 +77,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         adapter=adapter,
         stay_connected=stay_connected,
     )
+
+    device = await async_get_device(hass, eq3_config)
+
     thermostat = Thermostat(
         thermostat_config=thermostat_config,
-        hass=hass,
+        device=device,
     )
 
     eq3_config_entry = Eq3ConfigEntry(eq3_config=eq3_config, thermostat=thermostat)
@@ -106,3 +112,40 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Called when an entry is updated."""
 
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_get_device(hass: HomeAssistant, config: Eq3Config) -> BLEDevice:
+    device: BLEDevice | None
+
+    if config.adapter == Adapter.AUTO:
+        device = bluetooth.async_ble_device_from_address(
+            hass, config.mac_address, connectable=True
+        )
+        if device is None:
+            raise Exception("Device not found")
+    else:
+        device_advertisement_datas = sorted(
+            bluetooth.async_scanner_devices_by_address(
+                hass=hass, address=config.mac_address, connectable=True
+            ),
+            key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi
+            or NO_RSSI_VALUE,
+            reverse=True,
+        )
+        if config.adapter == Adapter.LOCAL:
+            if len(device_advertisement_datas) == 0:
+                raise Exception("Device not found")
+            d_and_a = device_advertisement_datas[0]
+        else:  # adapter is e.g /org/bluez/hci0
+            list = [
+                x
+                for x in device_advertisement_datas
+                if (d := x.ble_device.details)
+                and d.get("props", {}).get("Adapter") == config.adapter
+            ]
+            if len(list) == 0:
+                raise Exception("Device not found")
+            d_and_a = list[0]
+        device = d_and_a.ble_device
+
+    return device

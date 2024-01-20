@@ -84,7 +84,7 @@ class Adapter(str, Enum):
     LOCAL = "LOCAL"
 
 
-class Preset(Enum):
+class Eq3Preset(Enum):
     """Preset modes."""
 
     COMFORT = 0

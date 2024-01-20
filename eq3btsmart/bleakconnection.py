@@ -99,7 +99,9 @@ class BleakConnection:
                 handle.uuid,
             )
 
-    async def async_make_request(self, value: bytes, retries=RETRIES) -> None:
+    async def async_make_request(
+        self, value: bytes | None = None, retries: int = RETRIES
+    ) -> None:
         """Write a GATT Command with callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
             try:
@@ -108,7 +110,9 @@ class BleakConnection:
                 self.retries = 0
                 self._on_connection_event()
 
-    async def _async_make_request_try(self, value: bytes, retries) -> None:
+    async def _async_make_request_try(
+        self, value: bytes | None = None, retries: int = RETRIES
+    ) -> None:
         self.retries = 0
         while True:
             self.retries += 1
@@ -121,7 +125,7 @@ class BleakConnection:
                     raise BackendException("Can't connect")
 
                 self._notify_event.clear()
-                if value != "ONLY CONNECT":
+                if value is not None:
                     try:
                         await self._conn.start_notify(
                             PROP_NTFY_UUID, self.on_notification

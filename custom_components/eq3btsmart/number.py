@@ -99,11 +99,13 @@ class ComfortTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.comfort_temperature
+        return self._thermostat.status.comfort_temperature
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_update()  # to ensure the other temp is up to date
-        other = self._thermostat.eco_temperature
+        await (
+            self._thermostat.async_get_info()
+        )  # to ensure the other temp is up to date
+        other = self._thermostat.status.eco_temperature
 
         if other is None:
             return
@@ -123,11 +125,13 @@ class EcoTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.eco_temperature
+        return self._thermostat.status.eco_temperature
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_update()  # to ensure the other temp is up to date
-        other = self._thermostat.comfort_temperature
+        await (
+            self._thermostat.async_get_info()
+        )  # to ensure the other temp is up to date
+        other = self._thermostat.status.comfort_temperature
 
         if other is None:
             return
@@ -149,7 +153,10 @@ class OffsetTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.temperature_offset
+        if self._thermostat.status.offset_temperature is None:
+            return None
+
+        return self._thermostat.status.offset_temperature.friendly_value
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_temperature_offset_configure(value)
@@ -165,16 +172,27 @@ class WindowOpenTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.window_open_temperature
+        if self._thermostat.status.window_open_temperature is None:
+            return None
+
+        return self._thermostat.status.window_open_temperature.friendly_value
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_update()  # to ensure the other value is up to date
+        await (
+            self._thermostat.async_get_info()
+        )  # to ensure the other value is up to date
 
-        if self._thermostat.window_open_time is None:
+        if self._thermostat.status.window_open_time is None:
             return
 
         await self._thermostat.async_configure_window_open(
-            temperature=value, duration=self._thermostat.window_open_time
+            temperature=value,
+            duration=self._thermostat.status.window_open_time.friendly_value,
+        )
+
+        await self._thermostat.async_configure_window_open(
+            temperature=value,
+            duration=self._thermostat.status.window_open_time.friendly_value,
         )
 
 
@@ -195,19 +213,23 @@ class WindowOpenTimeout(Base):
 
     @property
     def native_value(self) -> float | None:
-        if self._thermostat.window_open_time is None:
+        if self._thermostat.status.window_open_time is None:
             return None
 
-        return self._thermostat.window_open_time.total_seconds() / 60
+        return (
+            self._thermostat.status.window_open_time.friendly_value.total_seconds() / 60
+        )
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_update()  # to ensure the other value is up to date
+        await (
+            self._thermostat.async_get_info()
+        )  # to ensure the other value is up to date
 
-        if self._thermostat.window_open_temperature is None:
+        if self._thermostat.status.window_open_temperature is None:
             return
 
         await self._thermostat.async_configure_window_open(
-            temperature=self._thermostat.window_open_temperature,
+            temperature=self._thermostat.status.window_open_temperature.friendly_value,
             duration=timedelta(minutes=value),
         )
 
@@ -231,14 +253,14 @@ class AwayForHours(Base, RestoreNumber):
 
         data = await self.async_get_last_number_data()
         if data and data.native_value is not None:
-            self._thermostat.default_away_hours = data.native_value
+            self.default_away_hours = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
-        self._thermostat.default_away_hours = value
+        self._eq3_config.default_away_hours = value
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.default_away_hours
+        return self._eq3_config.default_away_hours
 
 
 class AwayTemperature(Base, RestoreNumber):
@@ -254,11 +276,11 @@ class AwayTemperature(Base, RestoreNumber):
 
         data = await self.async_get_last_number_data()
         if data and data.native_value is not None:
-            self._thermostat.default_away_temp = data.native_value
+            self._eq3_config.default_away_temperature = data.native_value
 
     async def async_set_native_value(self, value: float) -> None:
-        self._thermostat.default_away_temp = value
+        self._eq3_config.default_away_temperature = value
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.default_away_temp
+        return self._eq3_config.default_away_temperature

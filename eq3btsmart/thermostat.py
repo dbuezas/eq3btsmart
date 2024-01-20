@@ -23,8 +23,8 @@ from eq3btsmart.const import (
     EQ3BT_OFF_TEMP,
     EQ3BT_ON_TEMP,
     Command,
+    Eq3Preset,
     OperationMode,
-    Preset,
     WeekDay,
 )
 from eq3btsmart.eq3_away_time import Eq3AwayTime
@@ -66,8 +66,8 @@ class Thermostat:
         """Initialize the thermostat."""
 
         self.thermostat_config = thermostat_config
-        self.status: Status | None = None
-        self.device_data: DeviceData | None = None
+        self.status: Status = Status()
+        self.device_data: DeviceData = DeviceData()
         self.schedule: Schedule = Schedule()
         self._on_update_callbacks: list[Callable] = []
         self._conn = BleakConnection(
@@ -160,7 +160,7 @@ class Thermostat:
     async def async_set_mode(self, operation_mode: OperationMode) -> None:
         """Set new operation mode."""
 
-        if self.status is None:
+        if self.status is None or self.status.target_temperature is None:
             raise Exception("Status not set")
 
         command: ModeSetCommand
@@ -222,15 +222,15 @@ class Thermostat:
             TemperatureSetCommand(temperature=eq3_temperature)
         )
 
-    async def async_set_preset(self, preset: Preset):
+    async def async_set_preset(self, preset: Eq3Preset):
         """Sets the thermostat to the given preset."""
 
         command: ComfortSetCommand | EcoSetCommand
 
         match preset:
-            case Preset.COMFORT:
+            case Eq3Preset.COMFORT:
                 command = ComfortSetCommand()
-            case Preset.ECO:
+            case Eq3Preset.ECO:
                 command = EcoSetCommand()
 
         await self._async_write_command(command)
@@ -248,7 +248,7 @@ class Thermostat:
     async def async_set_schedule(self, schedule: Schedule) -> None:
         """Sets the schedule for the given day."""
 
-        for schedule_day in schedule.days:
+        for schedule_day in schedule.schedule_days:
             command = ScheduleSetCommand(
                 day=schedule_day.week_day,
                 hours=[

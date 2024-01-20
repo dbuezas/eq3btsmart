@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from eq3btsmart.const import DEFAULT_AWAY_HOURS, DEFAULT_AWAY_TEMP
 from eq3btsmart.thermostat import Thermostat
 
 from .const import (
@@ -20,6 +21,8 @@ class Eq3Config:
     external_temp_sensor: str
     debug_mode: bool
     scan_interval: int
+    default_away_hours: float = DEFAULT_AWAY_HOURS
+    default_away_temperature: float = DEFAULT_AWAY_TEMP
 
 
 @dataclass
