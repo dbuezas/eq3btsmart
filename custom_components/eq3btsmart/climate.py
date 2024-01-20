@@ -111,14 +111,20 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         self._is_available = True
 
         if (
-            self._target_temperature_to_set
-            == self._thermostat.status.target_temperature
+            self._thermostat.status.target_temperature is not None
+            and self._target_temperature_to_set
+            == self._thermostat.status.target_temperature.friendly_value
         ):
             self._is_setting_temperature = False
 
-        if not self._is_setting_temperature:
+        if (
+            not self._is_setting_temperature
+            and self._thermostat.status.target_temperature is not None
+        ):
             # temperature may have been updated from the thermostat
-            self._target_temperature_to_set = self._thermostat.status.target_temperature
+            self._target_temperature_to_set = (
+                self._thermostat.status.target_temperature.friendly_value
+            )
 
         if self.entity_id is None:
             _LOGGER.warn(
@@ -155,13 +161,16 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                     return None
                 return (
                     (1 - self._thermostat.status.valve / 100) * 2
-                    + self._thermostat.status.target_temperature
+                    + self._thermostat.status.target_temperature.friendly_value
                     - 2
                 )
             case CurrentTemperatureSelector.UI:
                 return self._target_temperature_to_set
             case CurrentTemperatureSelector.DEVICE:
-                return self._thermostat.status.target_temperature
+                if self._thermostat.status.target_temperature is None:
+                    return None
+
+                return self._thermostat.status.target_temperature.friendly_value
             case CurrentTemperatureSelector.ENTITY:
                 state = self.hass.states.get(self._eq3_config.external_temp_sensor)
                 if state is not None:
@@ -178,7 +187,10 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             case TargetTemperatureSelector.TARGET:
                 return self._target_temperature_to_set
             case TargetTemperatureSelector.LAST_REPORTED:
-                return self._thermostat.status.target_temperature
+                if self._thermostat.status.target_temperature is None:
+                    return None
+
+                return self._thermostat.status.target_temperature.friendly_value
 
         return None
 
@@ -305,15 +317,12 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
     @property
     def device_info(self) -> DeviceInfo | None:
-        if self._thermostat.device_data.firmware_version is None:
-            return None
-
         return DeviceInfo(
             name=self._eq3_config.name,
             manufacturer=MANUFACTURER,
             model=DEVICE_MODEL,
             identifiers={(DOMAIN, self._eq3_config.mac_address)},
-            sw_version=str(self._thermostat.device_data.firmware_version),
+            sw_version=str(self._thermostat.device_data.firmware_version or "unknown"),
             connections={(CONNECTION_BLUETOOTH, self._eq3_config.mac_address)},
         )
 

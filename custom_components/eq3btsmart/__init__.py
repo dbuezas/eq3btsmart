@@ -11,6 +11,7 @@ from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, CONF_NAME, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import (
     CONF_ADAPTER,
@@ -26,7 +27,6 @@ from .const import (
     DEFAULT_STAY_CONNECTED,
     DEFAULT_TARGET_TEMP_SELECTOR,
     DOMAIN,
-    GET_DEVICE_TIMEOUT,
     Adapter,
 )
 from .models import Eq3Config, Eq3ConfigEntry
@@ -85,16 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         device = await async_get_device(hass, eq3_config)
     except Exception as e:
-        _LOGGER.error(f"Could not connect to device: {e}")
-
-        # reschedule setup entry in GET_DEVICE_TIMEOUT seconds
-
-        async def reschedule_setup_entry(_now: Any) -> None:
-            await hass.config_entries.async_reload(entry.entry_id)
-
-        hass.helpers.event.async_call_later(GET_DEVICE_TIMEOUT, reschedule_setup_entry)
-
-        return False
+        raise ConfigEntryNotReady(f"Could not connect to device: {e}")
 
     thermostat = Thermostat(
         thermostat_config=thermostat_config,

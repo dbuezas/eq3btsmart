@@ -1,5 +1,6 @@
 """Platform for eQ-3 binary sensor entities."""
 
+
 import json
 
 from custom_components.eq3btsmart.eq3_entity import Eq3Entity

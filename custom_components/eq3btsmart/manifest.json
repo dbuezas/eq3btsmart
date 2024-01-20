@@ -5,6 +5,7 @@
   "issue_tracker": "https://github.com/dbuezas/eq3btsmart/issues",
   "requirements": ["git+https://github.com/dbuezas/eq3btsmart.git@refactor-code-style"],
   "after_dependencies": ["bluetooth"],
+  "dependencies": ["bluetooth_adapters"],
   "codeowners": ["@dbuezas", "@eulemitkeule", "@rytilahti", "@lkempf"],
   "iot_class": "local_polling",
   "loggers": ["bleak", "eq3bt"],

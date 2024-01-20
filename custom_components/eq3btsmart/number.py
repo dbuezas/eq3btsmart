@@ -99,20 +99,14 @@ class ComfortTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.status.comfort_temperature
+        if self._thermostat.status.comfort_temperature is None:
+            return None
+
+        return self._thermostat.status.comfort_temperature.friendly_value
 
     async def async_set_native_value(self, value: float) -> None:
-        await (
-            self._thermostat.async_get_info()
-        )  # to ensure the other temp is up to date
-        other = self._thermostat.status.eco_temperature
-
-        if other is None:
-            return
-
-        await self._thermostat.async_configure_presets(
-            comfort_temperature=value, eco_temperature=other
-        )
+        await self._thermostat.async_get_info()
+        await self._thermostat.async_configure_presets(comfort_temperature=value)
 
 
 class EcoTemperature(Base):
@@ -125,20 +119,14 @@ class EcoTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        return self._thermostat.status.eco_temperature
+        if self._thermostat.status.eco_temperature is None:
+            return None
+
+        return self._thermostat.status.eco_temperature.friendly_value
 
     async def async_set_native_value(self, value: float) -> None:
-        await (
-            self._thermostat.async_get_info()
-        )  # to ensure the other temp is up to date
-        other = self._thermostat.status.comfort_temperature
-
-        if other is None:
-            return
-
-        await self._thermostat.async_configure_presets(
-            comfort_temperature=other, eco_temperature=value
-        )
+        await self._thermostat.async_get_info()
+        await self._thermostat.async_configure_presets(eco_temperature=value)
 
 
 class OffsetTemperature(Base):
