@@ -175,19 +175,25 @@ class Thermostat:
 
         match operation_mode:
             case OperationMode.AUTO:
-                command = ModeSetCommand(mode=OperationMode.AUTO)
+                command = ModeSetCommand(mode=OperationMode.AUTO, away_data=None)
             case OperationMode.MANUAL:
                 temperature = max(
                     min(self.status.target_temperature, Eq3Temperature(EQ3BT_MAX_TEMP)),
                     Eq3Temperature(EQ3BT_MIN_TEMP),
                 )
-                command = ModeSetCommand(mode=OperationMode.MANUAL | temperature)
+                command = ModeSetCommand(
+                    mode=OperationMode.MANUAL | temperature, away_data=None
+                )
             case OperationMode.OFF:
                 off_temperature = Eq3Temperature(EQ3BT_OFF_TEMP)
-                command = ModeSetCommand(mode=OperationMode.MANUAL | off_temperature)
+                command = ModeSetCommand(
+                    mode=OperationMode.MANUAL | off_temperature, away_data=None
+                )
             case OperationMode.ON:
                 on_temperature = Eq3Temperature(EQ3BT_ON_TEMP)
-                command = ModeSetCommand(mode=OperationMode.MANUAL | on_temperature)
+                command = ModeSetCommand(
+                    mode=OperationMode.MANUAL | on_temperature, away_data=None
+                )
 
         await self._async_write_command(command)
 
