@@ -32,7 +32,6 @@ from eq3btsmart.eq3_duration import Eq3Duration
 from eq3btsmart.eq3_temperature import Eq3Temperature
 from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
 from eq3btsmart.eq3_time import Eq3Time
-from eq3btsmart.exceptions import TemperatureException
 from eq3btsmart.models import DeviceData, Schedule, Status
 from eq3btsmart.structures import (
     BoostSetCommand,
@@ -292,10 +291,7 @@ class Thermostat:
             case Command.ID_RETURN:
                 self.device_data = DeviceData.from_bytes(data)
             case Command.INFO_RETURN:
-                try:
-                    self.status = Status.from_bytes(data)
-                except TemperatureException:
-                    pass
+                self.status = Status.from_bytes(data)
             case Command.SCHEDULE_RETURN:
                 schedule = Schedule.from_bytes(data)
                 self.schedule.merge(schedule)

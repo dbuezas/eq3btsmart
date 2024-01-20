@@ -9,6 +9,7 @@ from construct import (
     GreedyBytes,
     GreedyRange,
     If,
+    IfThenElse,
     Int8ub,
     Optional,
 )
@@ -116,9 +117,10 @@ class StatusStruct(DataclassMixin):
     const_2: int = csfield(Const(0x04, Int8ub))
     target_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
     away: Eq3AwayTime | None = csfield(
-        If(
+        IfThenElse(
             lambda ctx: ctx.mode & StatusFlags.AWAY,
             Eq3AwayTimeAdapter(Bytes(4)),
+            Optional(Eq3AwayTimeAdapter(Bytes(4))),
         )
     )
     presets: PresetsStruct | None = csfield(Optional(DataclassStruct(PresetsStruct)))
