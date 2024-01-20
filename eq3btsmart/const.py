@@ -1,28 +1,8 @@
 """Constants for the eq3btsmart library."""
 
-from enum import Enum, IntEnum, IntFlag
+from enum import Enum, IntEnum
 
-PROP_ID_QUERY = 0
-PROP_ID_RETURN = 1
-PROP_INFO_QUERY = 3
-PROP_INFO_RETURN = 2
-PROP_COMFORT_ECO_CONFIG = 0x11
-PROP_OFFSET = 0x13
-PROP_WINDOW_OPEN_CONFIG = 0x14
-PROP_SCHEDULE_SET = 0x10
-PROP_SCHEDULE_QUERY = 0x20
-PROP_SCHEDULE_RETURN = 0x21
-
-PROP_MODE_WRITE = 0x40
-PROP_TEMPERATURE_WRITE = 0x41
-PROP_COMFORT = 0x43
-PROP_ECO = 0x44
-PROP_BOOST = 0x45
-PROP_LOCK = 0x80
-
-NAME_TO_DAY = {"sat": 0, "sun": 1, "mon": 2, "tue": 3, "wed": 4, "thu": 5, "fri": 6}
-NAME_TO_CMD = {"write": PROP_SCHEDULE_SET, "response": PROP_SCHEDULE_RETURN}
-HOUR_24_PLACEHOLDER = 1234
+from construct_typed import EnumBase, FlagsEnumBase
 
 EQ3BT_AWAY_TEMP = 12.0
 EQ3BT_MIN_TEMP = 5.0
@@ -44,14 +24,26 @@ DEFAULT_AWAY_HOURS = 30 * 24
 DEFAULT_AWAY_TEMP = 12
 
 
-class ScheduleCommand(IntEnum):
-    """Schedule commands."""
+class Command(IntEnum):
+    ID_GET = 0x00
+    ID_RETURN = 0x01
+    INFO_RETURN = 0x02
+    INFO_GET = 0x03
+    SCHEDULE_SET = 0x10
+    COMFORT_ECO_CONFIGURE = 0x11
+    OFFSET_CONFIGURE = 0x13
+    WINDOW_OPEN_CONFIGURE = 0x14
+    SCHEDULE_GET = 0x20
+    SCHEDULE_RETURN = 0x21
+    MODE_SET = 0x40
+    TEMPERATURE_SET = 0x41
+    COMFORT_SET = 0x43
+    ECO_SET = 0x44
+    BOOST_SET = 0x45
+    LOCK_SET = 0x80
 
-    WRITE = PROP_SCHEDULE_SET
-    RESPONSE = PROP_SCHEDULE_RETURN
 
-
-class WeekDay(IntEnum):
+class WeekDay(EnumBase):
     """Weekdays."""
 
     SATURDAY = 0
@@ -63,18 +55,18 @@ class WeekDay(IntEnum):
     FRIDAY = 6
 
 
-class OperationMode(IntEnum):
+class OperationMode(EnumBase):
     """Operation modes."""
 
-    UNKNOWN = 0
-    AUTO = 1
-    MANUAL = 2
-    ON = 3
-    OFF = 4
+    AUTO = 0x00
+    MANUAL = 0x40
+    OFF = 0x49
+    ON = 0x7B
+    AWAY = 0x80
 
 
-class DeviceModeFlags(IntFlag):
-    """Device modes."""
+class StatusFlags(FlagsEnumBase):
+    """Status flags."""
 
     AUTO = 0x00  # always True, doesnt affect building
     MANUAL = 0x01
@@ -90,3 +82,10 @@ class DeviceModeFlags(IntFlag):
 class Adapter(str, Enum):
     AUTO = "AUTO"
     LOCAL = "LOCAL"
+
+
+class Preset(Enum):
+    """Preset modes."""
+
+    COMFORT = 0
+    ECO = 1

@@ -166,7 +166,7 @@ class FirmwareVersionSensor(Base):
 
     async def fetch_serial(self) -> None:
         try:
-            await self._thermostat.async_query_id()
+            await self._thermostat.async_get_id()
         except Exception as e:
             _LOGGER.error(
                 f"[{self._eq3_config.name}] Error fetching serial number: {e}"

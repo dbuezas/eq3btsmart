@@ -134,3 +134,45 @@ To setup `pre-commit` for automatic issue detection while committing you need to
 * `poetry run pre-commit install`
 * `poetry run pre-commit install --hook-type commit-msg`
 * `poetry run pre-commit install-hooks`
+
+# Protocol
+
+### `ID_GET`
+`0x00`
+
+### `INFO_GET`
+`0x03`
+
+### `COMFORT_ECO_CONFIGURE`
+`0x11 (COMFORT_TEMP * 2) (ECO_TEMP * 2)`
+
+### OFFSET_CONFIGURE
+`0x13 TEMP_INDEX`
+
+### WINDOW_OPEN_CONFIGURE
+`0x14 (TEMP * 2) (FLOOR(SECONDS / 300))`
+
+### `SCHEDULE_GET`
+`0x20 DAY`
+
+### `MODE_SET`
+* On: `0x40 (0x40 OR 0x3C)`
+* Off: `0x40 (0x40 OR 0x09)`
+* Manual: `0x40 (0x40 OR TEMP * 2)`
+* Auto: `0x40 0x00`
+* Away: `0x40 (0x80 OR TEMP * 2) DAY (YEAR - 2000) (HOUR * 2) (MONTH)`
+
+### `TEMPERATURE_SET`
+`0x41 (TEMP * 2)`
+
+### `COMFORT_SET`
+`0x43`
+
+### `ECO_SET`
+`0x44`
+
+### `BOOST_SET`
+`0x45 (0x00 | 0x01)`
+
+### `LOCK_SET`
+`0x80 (0x00 | 0x01)`

@@ -6,7 +6,8 @@ import logging
 from custom_components.eq3btsmart.eq3_entity import Eq3Entity
 from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
-from eq3btsmart.const import HOUR_24_PLACEHOLDER
+from eq3btsmart.const import HOUR_24_PLACEHOLDER, WeekDay
+from eq3btsmart.models import Schedule, ScheduleDay, ScheduleHour
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
 from homeassistant.core import HomeAssistant
@@ -86,7 +87,7 @@ class FetchScheduleButton(Base):
 
     async def async_press(self) -> None:
         for x in range(0, 7):
-            await self._thermostat.async_query_schedule(x)
+            await self._thermostat.async_get_schedule(x)
 
         _LOGGER.debug(
             f"[{self._eq3_config.name}] schedule: {self._thermostat.schedule}",
@@ -97,21 +98,28 @@ class FetchScheduleButton(Base):
 
         _LOGGER.debug(f"[{self._eq3_config.name}] set_schedule: {kwargs}")
 
+        schedule = Schedule()
         for day in kwargs["days"]:
+            week_day = WeekDay[day.upper()]
+            schedule_hours: list[ScheduleHour] = []
+            schedule_day = ScheduleDay(week_day=week_day, schedule_hours=schedule_hours)
+
             times = [
                 kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
             ]
             times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
             temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
-            hours = []
+
             for i in range(0, 6):
-                hours.append(
-                    {
-                        "target_temp": temps[i],
-                        "next_change_at": times[i],
-                    }
+                schedule_hour = ScheduleHour(
+                    target_temperature=temps[i],
+                    next_change_at=times[i],
                 )
-            await self._thermostat.async_set_schedule(day=day, hours=hours)
+                schedule_hours.append(schedule_hour)
+
+            schedule.days.append(schedule_day)
+
+        await self._thermostat.async_set_schedule(schedule=schedule)
 
     @property
     def extra_state_attributes(self):

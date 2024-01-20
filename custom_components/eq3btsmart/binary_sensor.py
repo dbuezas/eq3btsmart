@@ -105,7 +105,7 @@ class ConnectedSensor(Base):
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
-        if (device := self._thermostat._conn._ble_device) is None:
+        if (device := self._thermostat._conn._device) is None:
             return None
         if (details := device.details) is None:
             return None

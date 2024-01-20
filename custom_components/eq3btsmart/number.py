@@ -108,7 +108,9 @@ class ComfortTemperature(Base):
         if other is None:
             return
 
-        await self._thermostat.async_temperature_presets(comfort=value, eco=other)
+        await self._thermostat.async_configure_presets(
+            comfort_temperature=value, eco_temperature=other
+        )
 
 
 class EcoTemperature(Base):
@@ -130,7 +132,9 @@ class EcoTemperature(Base):
         if other is None:
             return
 
-        await self._thermostat.async_temperature_presets(comfort=other, eco=value)
+        await self._thermostat.async_configure_presets(
+            comfort_temperature=other, eco_temperature=value
+        )
 
 
 class OffsetTemperature(Base):
@@ -148,7 +152,7 @@ class OffsetTemperature(Base):
         return self._thermostat.temperature_offset
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_set_temperature_offset(value)
+        await self._thermostat.async_temperature_offset_configure(value)
 
 
 class WindowOpenTemperature(Base):
@@ -169,7 +173,7 @@ class WindowOpenTemperature(Base):
         if self._thermostat.window_open_time is None:
             return
 
-        await self._thermostat.async_window_open_config(
+        await self._thermostat.async_configure_window_open(
             temperature=value, duration=self._thermostat.window_open_time
         )
 
@@ -202,7 +206,7 @@ class WindowOpenTimeout(Base):
         if self._thermostat.window_open_temperature is None:
             return
 
-        await self._thermostat.async_window_open_config(
+        await self._thermostat.async_configure_window_open(
             temperature=self._thermostat.window_open_temperature,
             duration=timedelta(minutes=value),
         )

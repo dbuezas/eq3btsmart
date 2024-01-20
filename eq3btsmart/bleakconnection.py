@@ -6,9 +6,7 @@ from typing import Callable, cast
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
-from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
-from homeassistant.components import bluetooth
-from homeassistant.core import HomeAssistant
+from bleak_retry_connector import establish_connection
 
 from eq3btsmart.const import (
     PROP_NTFY_UUID,
@@ -32,19 +30,18 @@ class BleakConnection:
     def __init__(
         self,
         thermostat_config: ThermostatConfig,
-        hass: HomeAssistant,
-        callback,
+        device: BLEDevice,
+        callback: Callable,
     ):
         """Initialize the connection."""
+
         self.thermostat_config = thermostat_config
-        self._hass = hass
         self._callback = callback
         self._notify_event = asyncio.Event()
         self._terminate_event = asyncio.Event()
-        self.rssi: int | None = None
         self._lock = asyncio.Lock()
         self._conn: BleakClient | None = None
-        self._ble_device: BLEDevice | None = None
+        self._device: BLEDevice = device
         self._connection_callbacks: list[Callable] = []
         self.retries = 0
         self._round_robin = 0
@@ -52,15 +49,31 @@ class BleakConnection:
     def register_connection_callback(self, callback: Callable) -> None:
         self._connection_callbacks.append(callback)
 
-    def _on_connection_event(self) -> None:
-        for callback in self._connection_callbacks:
-            callback()
+    async def async_connect(self) -> None:
+        match self.thermostat_config.adapter:
+            case Adapter.AUTO:
+                self._conn = await establish_connection(
+                    client_class=BleakClient,
+                    device=self._device,
+                    name=self.thermostat_config.name,
+                    disconnected_callback=lambda client: self._on_connection_event(),
+                    max_attempts=2,
+                    use_services_cache=True,
+                )
 
-    def shutdown(self) -> None:
-        _LOGGER.debug(
-            "[%s] closing connections",
-            self.thermostat_config.name,
-        )
+            case Adapter.LOCAL:
+                UnwrappedBleakClient = cast(type[BleakClient], BleakClient.__bases__[0])
+                self._conn = UnwrappedBleakClient(
+                    self._device,
+                    disconnected_callback=lambda client: self._on_connection_event(),
+                    dangerous_use_bleak_cache=True,
+                )
+                await self._conn.connect()
+
+        if self._conn is None or not self._conn.is_connected:
+            raise BackendException("Can't connect")
+
+    def disconnect(self) -> None:
         self._terminate_event.set()
         self._notify_event.set()
 
@@ -70,74 +83,14 @@ class BleakConnection:
                 await self._conn.disconnect()
             raise Exception("Connection cancelled by shutdown")
 
-    async def async_get_connection(self) -> BleakClient:
-        if self.thermostat_config.adapter == Adapter.AUTO:
-            self._ble_device = bluetooth.async_ble_device_from_address(
-                self._hass, self.thermostat_config.mac_address, connectable=True
-            )
-            if self._ble_device is None:
-                raise Exception("Device not found")
-
-            self._conn = await establish_connection(
-                client_class=BleakClient,
-                device=self._ble_device,
-                name=self.thermostat_config.name,
-                disconnected_callback=lambda client: self._on_connection_event(),
-                max_attempts=2,
-                use_services_cache=True,
-            )
-        else:
-            device_advertisement_datas = sorted(
-                bluetooth.async_scanner_devices_by_address(
-                    hass=self._hass,
-                    address=self.thermostat_config.mac_address,
-                    connectable=True,
-                ),
-                key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi
-                or NO_RSSI_VALUE,
-                reverse=True,
-            )
-            if self.thermostat_config.adapter == Adapter.LOCAL:
-                if len(device_advertisement_datas) == 0:
-                    raise Exception("Device not found")
-                d_and_a = device_advertisement_datas[
-                    self._round_robin % len(device_advertisement_datas)
-                ]
-            else:  # adapter is e.g /org/bluez/hci0
-                list = [
-                    x
-                    for x in device_advertisement_datas
-                    if (d := x.ble_device.details)
-                    and d.get("props", {}).get("Adapter") == self._adapter
-                ]
-                if len(list) == 0:
-                    raise Exception("Device not found")
-                d_and_a = list[0]
-            self.rssi = d_and_a.advertisement.rssi
-            self._ble_device = d_and_a.ble_device
-            UnwrappedBleakClient = cast(type[BleakClient], BleakClient.__bases__[0])
-            self._conn = UnwrappedBleakClient(
-                self._ble_device,
-                disconnected_callback=lambda client: self._on_connection_event(),
-                dangerous_use_bleak_cache=True,
-            )
-            await self._conn.connect()
-
-        self._on_connection_event()
-
-        if self._conn is not None and self._conn.is_connected:
-            _LOGGER.debug("[%s] Connected", self.thermostat_config.name)
-        else:
-            raise BackendException("Can't connect")
-        return self._conn
-
     async def on_notification(
         self, handle: BleakGATTCharacteristic, data: bytearray
     ) -> None:
         """Handle Callback from a Bluetooth (GATT) request."""
         if PROP_NTFY_UUID == handle.uuid:
             self._notify_event.set()
-            self._callback(data)
+            data_bytes = bytes(data)
+            self._callback(data_bytes)
         else:
             _LOGGER.error(
                 "[%s] wrong charasteristic: %s, %s",
@@ -146,7 +99,7 @@ class BleakConnection:
                 handle.uuid,
             )
 
-    async def async_make_request(self, value, retries=RETRIES) -> None:
+    async def async_make_request(self, value: bytes, retries=RETRIES) -> None:
         """Write a GATT Command with callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
             try:
@@ -155,19 +108,25 @@ class BleakConnection:
                 self.retries = 0
                 self._on_connection_event()
 
-    async def _async_make_request_try(self, value, retries) -> None:
+    async def _async_make_request_try(self, value: bytes, retries) -> None:
         self.retries = 0
         while True:
             self.retries += 1
             self._on_connection_event()
             try:
                 await self.throw_if_terminating()
-                conn = await self.async_get_connection()
+                await self.async_connect()
+
+                if self._conn is None:
+                    raise BackendException("Can't connect")
+
                 self._notify_event.clear()
                 if value != "ONLY CONNECT":
                     try:
-                        await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                        await conn.write_gatt_char(
+                        await self._conn.start_notify(
+                            PROP_NTFY_UUID, self.on_notification
+                        )
+                        await self._conn.write_gatt_char(
                             PROP_WRITE_UUID, value, response=True
                         )
                         await asyncio.wait_for(
@@ -175,21 +134,20 @@ class BleakConnection:
                         )
                     finally:
                         if self.thermostat_config.stay_connected:
-                            await conn.stop_notify(PROP_NTFY_UUID)
+                            await self._conn.stop_notify(PROP_NTFY_UUID)
                         else:
-                            await conn.disconnect()
+                            await self._conn.disconnect()
                 return
             except Exception as ex:
                 await self.throw_if_terminating()
-                _LOGGER.debug(
-                    "[%s] Broken connection [retry %s/%s]: %s",
-                    self.thermostat_config.name,
-                    self.retries,
-                    retries,
-                    ex,
-                    exc_info=True,
-                )
+
                 self._round_robin = self._round_robin + 1
+
                 if self.retries >= retries:
                     raise ex
+
                 await asyncio.sleep(RETRY_BACK_OFF_FACTOR * self.retries)
+
+    def _on_connection_event(self) -> None:
+        for callback in self._connection_callbacks:
+            callback()

@@ -1,13 +1,17 @@
-from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from dataclasses import dataclass, field
+from typing import Self
 
 from construct_typed import DataclassStruct
 
 from eq3btsmart.const import EQ3BT_OFF_TEMP, EQ3BT_ON_TEMP, OperationMode, WeekDay
+from eq3btsmart.eq3_away_time import Eq3AwayTime
+from eq3btsmart.eq3_duration import Eq3Duration
+from eq3btsmart.eq3_schedule_time import Eq3ScheduleTime
+from eq3btsmart.eq3_temperature import Eq3Temperature
+from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
 from eq3btsmart.structures import (
     DeviceIdStruct,
-    ScheduleEntryStruct,
-    ScheduleStruct,
+    ScheduleDayStruct,
     StatusStruct,
 )
 
@@ -18,21 +22,21 @@ class DeviceData:
     device_serial: str
 
     @classmethod
-    def from_struct(cls, struct: DeviceIdStruct) -> "DeviceData":
+    def from_device(cls, struct: DeviceIdStruct) -> Self:
         return cls(
             firmware_version=struct.version,
             device_serial=struct.serial,
         )
 
     @classmethod
-    def from_bytearray(cls, data: bytearray) -> "DeviceData":
-        return cls.from_struct(DataclassStruct(DeviceIdStruct).parse(data))
+    def from_bytes(cls, data: bytes) -> Self:
+        return cls.from_device(DataclassStruct(DeviceIdStruct).parse(data))
 
 
 @dataclass
 class Status:
     valve: int
-    target_temperature: float
+    target_temperature: Eq3Temperature
     _operation_mode: OperationMode
     is_away: bool
     is_boost: bool
@@ -40,12 +44,12 @@ class Status:
     is_window_open: bool
     is_locked: bool
     is_low_battery: bool
-    away_datetime: datetime | None
-    window_open_temperature: float | None
-    window_open_time: timedelta | None
-    comfort_temperature: float | None
-    eco_temperature: float | None
-    offset_temperature: float | None
+    away_datetime: Eq3AwayTime | None
+    window_open_temperature: Eq3Temperature | None
+    window_open_time: Eq3Duration | None
+    comfort_temperature: Eq3Temperature | None
+    eco_temperature: Eq3Temperature | None
+    offset_temperature: Eq3TemperatureOffset | None
 
     @property
     def operation_mode(self) -> OperationMode:
@@ -58,7 +62,7 @@ class Status:
         return self._operation_mode
 
     @classmethod
-    def from_struct(cls, struct: StatusStruct) -> "Status":
+    def from_device(cls, struct: StatusStruct) -> Self:
         return cls(
             valve=struct.valve,
             target_temperature=struct.target_temp,
@@ -84,39 +88,49 @@ class Status:
         )
 
     @classmethod
-    def from_bytes(cls, data: bytearray | bytes) -> "Status":
-        return cls.from_struct(DataclassStruct(StatusStruct).parse(data))
+    def from_bytes(cls, data: bytes) -> Self:
+        return cls.from_device(DataclassStruct(StatusStruct).parse(data))
 
 
 @dataclass
-class ScheduleEntry:
-    target_temperature: float
-    next_change_at: time
+class ScheduleHour:
+    target_temperature: Eq3Temperature
+    next_change_at: Eq3ScheduleTime
+
+
+@dataclass
+class ScheduleDay:
+    week_day: WeekDay
+    schedule_hours: list[ScheduleHour] = field(default_factory=list)
 
     @classmethod
-    def from_struct(cls, struct: ScheduleEntryStruct) -> "ScheduleEntry":
+    def from_device(cls, struct: ScheduleDayStruct) -> Self:
         return cls(
-            target_temperature=struct.target_temp,
-            next_change_at=struct.next_change_at,
+            week_day=struct.day,
+            schedule_hours=[
+                ScheduleHour(
+                    target_temperature=hour.target_temp,
+                    next_change_at=hour.next_change_at,
+                )
+                for hour in struct.hours
+            ],
         )
 
     @classmethod
-    def from_bytes(cls, data: bytearray | bytes) -> "ScheduleEntry":
-        return cls.from_struct(DataclassStruct(ScheduleEntryStruct).parse(data))
+    def from_bytes(cls, data: bytes) -> Self:
+        return cls.from_device(DataclassStruct(ScheduleDayStruct).parse(data))
 
 
 @dataclass
 class Schedule:
-    entries: dict[WeekDay, list[ScheduleEntry]] = {}
+    days: list[ScheduleDay] = field(default_factory=list)
 
-    def add_struct(self, struct: ScheduleStruct) -> None:
-        if struct.day in self.entries:
-            self.entries[struct.day] = []
+    def merge(self, other_schedule: Self) -> None:
+        for schedule_day in other_schedule.days:
+            self.days[
+                schedule_day.week_day
+            ].schedule_hours = schedule_day.schedule_hours
 
-        self.entries[struct.day] = []
-
-        for entry in struct.hours:
-            self.entries[struct.day].append(ScheduleEntry.from_struct(entry))
-
-    def add_bytes(self, data: bytearray | bytes) -> None:
-        self.add_struct(DataclassStruct(ScheduleStruct).parse(data))
+    @classmethod
+    def from_bytes(cls, data: bytes) -> Self:
+        return cls(days=[ScheduleDay.from_bytes(data)])

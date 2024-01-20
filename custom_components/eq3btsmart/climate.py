@@ -212,9 +212,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             self.async_schedule_update_ha_state()
 
     async def async_set_temperature_now(self) -> None:
-        await self._thermostat.async_set_target_temperature(
-            self._target_temperature_to_set
-        )
+        await self._thermostat.async_set_temperature(self._target_temperature_to_set)
         self._is_setting_temperature = False
 
     @property
