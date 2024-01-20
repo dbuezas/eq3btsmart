@@ -216,7 +216,13 @@ class ModeSetCommand(Eq3Command):
 
     cmd: int = csfield(Const(Command.MODE_SET, Int8ub))
     mode: int = csfield(Int8ub)
-    away_data: Eq3AwayTime | None = csfield(Optional(Eq3AwayTimeAdapter(Bytes(4))))
+
+
+@dataclass
+class AwaySetCommand(ModeSetCommand):
+    """Structure for away set command."""
+
+    away_until: Eq3AwayTime = csfield(Eq3AwayTimeAdapter(Bytes(4)))
 
 
 @dataclass

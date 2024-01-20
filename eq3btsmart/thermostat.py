@@ -34,6 +34,7 @@ from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
 from eq3btsmart.eq3_time import Eq3Time
 from eq3btsmart.models import DeviceData, Schedule, Status
 from eq3btsmart.structures import (
+    AwaySetCommand,
     BoostSetCommand,
     ComfortEcoConfigureCommand,
     ComfortSetCommand,
@@ -175,25 +176,19 @@ class Thermostat:
 
         match operation_mode:
             case OperationMode.AUTO:
-                command = ModeSetCommand(mode=OperationMode.AUTO, away_data=None)
+                command = ModeSetCommand(mode=OperationMode.AUTO)
             case OperationMode.MANUAL:
                 temperature = max(
                     min(self.status.target_temperature, Eq3Temperature(EQ3BT_MAX_TEMP)),
                     Eq3Temperature(EQ3BT_MIN_TEMP),
                 )
-                command = ModeSetCommand(
-                    mode=OperationMode.MANUAL | temperature, away_data=None
-                )
+                command = ModeSetCommand(mode=OperationMode.MANUAL | temperature)
             case OperationMode.OFF:
                 off_temperature = Eq3Temperature(EQ3BT_OFF_TEMP)
-                command = ModeSetCommand(
-                    mode=OperationMode.MANUAL | off_temperature, away_data=None
-                )
+                command = ModeSetCommand(mode=OperationMode.MANUAL | off_temperature)
             case OperationMode.ON:
                 on_temperature = Eq3Temperature(EQ3BT_ON_TEMP)
-                command = ModeSetCommand(
-                    mode=OperationMode.MANUAL | on_temperature, away_data=None
-                )
+                command = ModeSetCommand(mode=OperationMode.MANUAL | on_temperature)
 
         await self._async_write_command(command)
 
@@ -216,9 +211,9 @@ class Thermostat:
         eq3_temperature = Eq3Temperature(temperature)
 
         await self._async_write_command(
-            ModeSetCommand(
+            AwaySetCommand(
                 mode=OperationMode.AWAY | eq3_temperature,
-                away_data=eq3_away_until,
+                away_until=eq3_away_until,
             )
         )
 
