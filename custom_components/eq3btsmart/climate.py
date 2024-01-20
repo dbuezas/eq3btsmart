@@ -251,9 +251,10 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 self._target_temperature_to_set = EQ3BT_OFF_TEMP
                 self._is_setting_temperature = True
             case _:
-                self._target_temperature_to_set = (
-                    self._thermostat.status.target_temperature
-                )
+                if self._thermostat.status.target_temperature is not None:
+                    self._target_temperature_to_set = (
+                        self._thermostat.status.target_temperature.friendly_value
+                    )
                 self._is_setting_temperature = False
 
         self.async_schedule_update_ha_state()
