@@ -8,7 +8,6 @@ from construct import (
     Flag,
     GreedyBytes,
     GreedyRange,
-    If,
     Int8ub,
     Optional,
 )
@@ -217,12 +216,7 @@ class ModeSetCommand(Eq3Command):
 
     cmd: int = csfield(Const(Command.MODE_SET, Int8ub))
     mode: int = csfield(Int8ub)
-    away_data: Eq3AwayTime | None = csfield(
-        If(
-            lambda ctx: ctx.mode & StatusFlags.AWAY,
-            Eq3AwayTimeAdapter(Bytes(4)),
-        )
-    )
+    away_data: Eq3AwayTime | None = csfield(Optional(Eq3AwayTimeAdapter(Bytes(4))))
 
 
 @dataclass
