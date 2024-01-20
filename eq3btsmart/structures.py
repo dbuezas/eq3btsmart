@@ -9,7 +9,6 @@ from construct import (
     GreedyBytes,
     GreedyRange,
     If,
-    IfThenElse,
     Int8ub,
     Optional,
 )
@@ -81,7 +80,7 @@ class Eq3DurationAdapter(Adapter):
 class Eq3AwayTimeAdapter(Adapter):
     """Adapter to encode and decode away time data."""
 
-    def _decode(self, obj: bytes, ctx, path) -> Eq3AwayTime:
+    def _decode(self, obj: bytes, ctx, path) -> Eq3AwayTime | None:
         return Eq3AwayTime.from_device(obj)
 
     def _encode(self, obj: Eq3AwayTime, ctx, path) -> bytes:
@@ -116,13 +115,7 @@ class StatusStruct(DataclassMixin):
     valve: int = csfield(Int8ub)
     const_2: int = csfield(Const(0x04, Int8ub))
     target_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
-    away: Eq3AwayTime | None = csfield(
-        IfThenElse(
-            lambda ctx: ctx.mode & StatusFlags.AWAY,
-            Eq3AwayTimeAdapter(Bytes(4)),
-            Optional(Eq3AwayTimeAdapter(Bytes(4))),
-        )
-    )
+    away: Eq3AwayTime | None = csfield(Eq3AwayTimeAdapter(Bytes(4)))
     presets: PresetsStruct | None = csfield(Optional(DataclassStruct(PresetsStruct)))
 
 

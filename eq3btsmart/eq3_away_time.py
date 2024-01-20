@@ -32,8 +32,12 @@ class Eq3AwayTime(bytes):
         return datetime(year=year, month=month, day=day, hour=hour, minute=min)
 
     @classmethod
-    def from_device(cls, value: bytes) -> Self:
+    def from_device(cls, value: bytes) -> Self | None:
+        if value == bytes([0x00, 0x00, 0x00, 0x00]):
+            return None
+
         (day, year, hour_min, month) = value
+
         year += 2000
 
         min = 0
