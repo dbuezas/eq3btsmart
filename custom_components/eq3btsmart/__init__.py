@@ -1,5 +1,6 @@
 """Support for EQ3 devices."""
 
+import logging
 from typing import Any
 
 from bleak.backends.device import BLEDevice
@@ -25,6 +26,7 @@ from .const import (
     DEFAULT_STAY_CONNECTED,
     DEFAULT_TARGET_TEMP_SELECTOR,
     DOMAIN,
+    GET_DEVICE_TIMEOUT,
     Adapter,
 )
 from .models import Eq3Config, Eq3ConfigEntry
@@ -38,6 +40,8 @@ PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.NUMBER,
 ]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -78,7 +82,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         stay_connected=stay_connected,
     )
 
-    device = await async_get_device(hass, eq3_config)
+    try:
+        device = await async_get_device(hass, eq3_config)
+    except Exception as e:
+        _LOGGER.error(f"Could not connect to device: {e}")
+
+        # reschedule setup entry in GET_DEVICE_TIMEOUT seconds
+
+        async def reschedule_setup_entry(_now: Any) -> None:
+            await hass.config_entries.async_reload(entry.entry_id)
+
+        hass.helpers.event.async_call_later(GET_DEVICE_TIMEOUT, reschedule_setup_entry)
+
+        return False
 
     thermostat = Thermostat(
         thermostat_config=thermostat_config,

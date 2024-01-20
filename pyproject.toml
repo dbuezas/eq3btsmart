@@ -14,7 +14,6 @@ python = ">=3.11,<3.13"
 bleak = "^0.21.1"
 construct = "^2.10.68"
 construct-typing = "^0.6.2"
-homeassistant = "^2023.1.1"
 bleak-retry-connector = "^3.4.0"
 pyserial = "^3.5"
 

@@ -1,7 +1,7 @@
 """Bleak connection backend."""
 import asyncio
 import logging
-from typing import Callable, cast
+from typing import Callable, Coroutine, cast
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -30,10 +30,17 @@ class BleakConnection:
     def __init__(
         self,
         thermostat_config: ThermostatConfig,
-        device: BLEDevice,
         callback: Callable,
+        device: BLEDevice | None = None,
+        get_device: Coroutine[None, None, BLEDevice] | None = None,
     ):
         """Initialize the connection."""
+
+        if device is None and get_device is None:
+            raise Exception("Either device or get_device must be provided")
+
+        if device is not None and get_device is not None:
+            raise Exception("Either device or get_device must be provided")
 
         self.thermostat_config = thermostat_config
         self._callback = callback
@@ -41,7 +48,8 @@ class BleakConnection:
         self._terminate_event = asyncio.Event()
         self._lock = asyncio.Lock()
         self._conn: BleakClient | None = None
-        self._device: BLEDevice = device
+        self._device: BLEDevice | None = device
+        self._get_device: Coroutine[None, None, BLEDevice] | None = get_device
         self._connection_callbacks: list[Callable] = []
         self.retries = 0
         self._round_robin = 0
@@ -50,6 +58,11 @@ class BleakConnection:
         self._connection_callbacks.append(callback)
 
     async def async_connect(self) -> None:
+        """Connect to the thermostat."""
+
+        if self._device is None:
+            raise NotImplementedError("get_device not implemented")
+
         match self.thermostat_config.adapter:
             case Adapter.AUTO:
                 self._conn = await establish_connection(

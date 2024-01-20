@@ -9,7 +9,7 @@ Schedule needs to be requested with query_schedule() before accessing for simila
 
 import logging
 from datetime import datetime, timedelta
-from typing import Callable
+from typing import Callable, Coroutine
 
 from bleak.backends.device import BLEDevice
 from construct_typed import DataclassStruct
@@ -61,9 +61,16 @@ class Thermostat:
     def __init__(
         self,
         thermostat_config: ThermostatConfig,
-        device: BLEDevice,
+        device: BLEDevice | None = None,
+        get_device: Coroutine[None, None, BLEDevice] | None = None,
     ):
         """Initialize the thermostat."""
+
+        if device is None and get_device is None:
+            raise Exception("Either device or get_device must be provided")
+
+        if device is not None and get_device is not None:
+            raise Exception("Either device or get_device must be provided")
 
         self.thermostat_config = thermostat_config
         self.status: Status = Status()
@@ -73,6 +80,7 @@ class Thermostat:
         self._conn = BleakConnection(
             thermostat_config=self.thermostat_config,
             device=device,
+            get_device=get_device,
             callback=self.handle_notification,
         )
 
