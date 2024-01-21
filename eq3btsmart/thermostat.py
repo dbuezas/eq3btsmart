@@ -288,16 +288,21 @@ class Thermostat:
 
         command = DataclassStruct(Eq3Command).parse(data)
 
-        match command.cmd:
-            case Command.ID_RETURN:
-                self.device_data = DeviceData.from_bytes(data)
-            case Command.INFO_RETURN:
-                self.status = Status.from_bytes(data)
-            case Command.SCHEDULE_RETURN:
-                schedule = Schedule.from_bytes(data)
-                self.schedule.merge(schedule)
-            case _:
-                updated = False
+        try:
+            match command.cmd:
+                case Command.ID_RETURN:
+                    self.device_data = DeviceData.from_bytes(data)
+                case Command.INFO_RETURN:
+                    self.status = Status.from_bytes(data)
+                case Command.SCHEDULE_RETURN:
+                    schedule = Schedule.from_bytes(data)
+                    self.schedule.merge(schedule)
+                case _:
+                    updated = False
+        except Exception:
+            # print all bytes received in this format: Received: 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+            _LOGGER.exception("Received: %s", " ".join([f"0x{b:02x}" for b in data]))
+            updated = False
 
         if not updated:
             return

@@ -30,7 +30,7 @@
         "title": "EQ-3 Options",
         "description": "Increasing the scan interval to 10 minutes and disabling persistant connections may save battery. Set the bluetooth adapter to 'local' avoid using BTProxy, or pick manually if you have multiple available and want to distribute connection across them.",
         "data": {
-          "scan_interval": "Scan interval in minutes",
+          "scan_interval": "Scan interval in seconds",
           "conf_current_temp_selector": "What to show as current temperature",
           "conf_target_temp_selector": "What to show as target temperature",
           "conf_external_temp_sensor": "External temperature sensor",

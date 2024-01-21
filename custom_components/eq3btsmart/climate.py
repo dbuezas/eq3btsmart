@@ -101,7 +101,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         await self.async_scan()
 
         if self._platform_state != EntityPlatformState.REMOVED:
-            delay = timedelta(minutes=self._eq3_config.scan_interval)
+            delay = timedelta(seconds=self._eq3_config.scan_interval)
             self._cancel_timer = async_call_later(
                 self.hass, delay, self._async_scan_loop
             )

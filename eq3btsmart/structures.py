@@ -114,7 +114,7 @@ class StatusStruct(DataclassMixin):
     valve: int = csfield(Int8ub)
     const_2: int = csfield(Const(0x04, Int8ub))
     target_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
-    away: Eq3AwayTime | None = csfield(Eq3AwayTimeAdapter(Bytes(4)))
+    away: Eq3AwayTime | None = csfield(Optional(Eq3AwayTimeAdapter(Bytes(4))))
     presets: PresetsStruct | None = csfield(Optional(DataclassStruct(PresetsStruct)))
 
 
