@@ -126,10 +126,21 @@ class Schedule:
     schedule_days: list[ScheduleDay] = field(default_factory=list)
 
     def merge(self, other_schedule: Self) -> None:
-        for schedule_day in other_schedule.schedule_days:
-            self.schedule_days[
-                schedule_day.week_day
-            ].schedule_hours = schedule_day.schedule_hours
+        for other_schedule_day in other_schedule.schedule_days:
+            schedule_day = next(
+                (
+                    schedule_day
+                    for schedule_day in self.schedule_days
+                    if schedule_day.week_day == other_schedule_day.week_day
+                ),
+                None,
+            )
+
+            if not schedule_day:
+                self.schedule_days.append(other_schedule_day)
+                continue
+
+            schedule_day.schedule_hours = other_schedule_day.schedule_hours
 
     @classmethod
     def from_bytes(cls, data: bytes) -> Self:

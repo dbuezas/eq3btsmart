@@ -129,23 +129,18 @@ class ConnectionSwitch(Base):
     def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
         super().__init__(eq3_config, thermostat)
 
-        self._thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state
-        )
+        self._thermostat.register_connection_callback(self.schedule_update_ha_state)
         self._attr_name = ENTITY_NAME_CONNECTION
         self._attr_icon = ENTITY_ICON_CONNECTION
         self._attr_assumed_state = True
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self._thermostat._conn.async_make_request()
+        await self._thermostat.async_connect()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        if self._thermostat._conn._conn:
-            await self._thermostat._conn._conn.disconnect()
+        await self._thermostat.async_disconnect()
 
     @property
     def is_on(self) -> bool | None:
-        if self._thermostat._conn._conn is None:
-            return None
-        return self._thermostat._conn._conn.is_connected
+        return self._thermostat._conn.is_connected

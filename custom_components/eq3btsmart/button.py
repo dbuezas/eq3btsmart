@@ -1,16 +1,17 @@
 """Platform for eQ-3 button entities."""
 
-import datetime
 import logging
-from typing import Any
 
 from custom_components.eq3btsmart.eq3_entity import Eq3Entity
 from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from eq3btsmart.const import WeekDay
+from eq3btsmart.eq3_schedule_time import Eq3ScheduleTime
+from eq3btsmart.eq3_temperature import Eq3Temperature
 from eq3btsmart.models import Schedule, ScheduleDay, ScheduleHour
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
+from homeassistant.const import WEEKDAYS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import format_mac
@@ -100,20 +101,30 @@ class FetchScheduleButton(Base):
 
         schedule = Schedule()
         for day in kwargs["days"]:
-            week_day = WeekDay[day.upper()]
+            index = WEEKDAYS.index(day)
+            week_day = WeekDay.from_index(index)
+
             schedule_hours: list[ScheduleHour] = []
             schedule_day = ScheduleDay(week_day=week_day, schedule_hours=schedule_hours)
 
             times = [
-                kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
+                kwargs.get(f"next_change_at_{i}", None)
+                for i in range(6)
+                if f"next_change_at_{i}" in kwargs
             ]
             # times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
-            temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
+            temps = [kwargs.get(f"target_temp_{i}", None) for i in range(6)]
 
-            for i in range(0, 6):
+            times = list(filter(None, times))
+            temps = list(filter(None, temps))
+
+            if len(times) != len(temps) - 1:
+                raise ValueError("Times and temps must be of equal length")
+
+            for time, temp in zip(times, temps):
                 schedule_hour = ScheduleHour(
-                    target_temperature=temps[i],
-                    next_change_at=times[i],
+                    target_temperature=Eq3Temperature(temp),
+                    next_change_at=Eq3ScheduleTime(time),
                 )
                 schedule_hours.append(schedule_hour)
 
@@ -125,19 +136,15 @@ class FetchScheduleButton(Base):
     def extra_state_attributes(self):
         schedule = {}
         for day in self._thermostat.schedule.schedule_days:
-            day_nice: dict[str, Any] = {"day": day}
-            for i, schedule_hour in enumerate(day.schedule_hours):
-                day_nice[
-                    f"target_temp_{i}"
-                ] = schedule_hour.target_temperature.friendly_value
-                # if schedule_hour.next_change_at == HOUR_24_PLACEHOLDER:
-                #     break
-                day_nice[
-                    f"next_change_at_{i}"
-                ] = schedule_hour.next_change_at.friendly_value.isoformat()
-            schedule[day] = day_nice
+            schedule[str(day.week_day)] = [
+                {
+                    "target_temperature": schedule_hour.target_temperature.friendly_value,
+                    "next_change_at": schedule_hour.next_change_at.friendly_value.isoformat(),
+                }
+                for schedule_hour in day.schedule_hours
+            ]
 
-        return schedule
+        return {"schedule": schedule}
 
 
 class FetchButton(Base):

@@ -14,9 +14,9 @@ EQ3BT_MAX_OFFSET = 3.5
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
-PROP_NTFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
+PROP_NOTIFY_UUID = "d0e8434d-cd29-0996-af41-6c90f4e0eb2a"
 
-REQUEST_TIMEOUT = 5
+REQUEST_TIMEOUT = 10
 RETRY_BACK_OFF_FACTOR = 0.25
 RETRIES = 14
 
@@ -53,6 +53,13 @@ class WeekDay(EnumBase):
     WEDNESDAY = 4
     THURSDAY = 5
     FRIDAY = 6
+
+    @classmethod
+    def from_index(cls, index: int) -> "WeekDay":
+        """Return weekday from index."""
+
+        adjusted_index = index + 2 if index < 5 else index - 5
+        return cls(adjusted_index)
 
 
 class OperationMode(EnumBase):

@@ -1,8 +1,6 @@
 """Platform for eQ-3 binary sensor entities."""
 
 
-import json
-
 from custom_components.eq3btsmart.eq3_entity import Eq3Entity
 from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
@@ -80,15 +78,13 @@ class BusySensor(Base):
     def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
         super().__init__(eq3_config, thermostat)
 
-        self._thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state
-        )
+        self._thermostat.register_connection_callback(self.schedule_update_ha_state)
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_name = ENTITY_NAME_BUSY
 
     @property
     def is_on(self) -> bool:
-        return self._thermostat._conn._lock.locked()
+        return self._thermostat._lock.locked()
 
 
 class ConnectedSensor(Base):
@@ -97,30 +93,25 @@ class ConnectedSensor(Base):
     def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
         super().__init__(eq3_config, thermostat)
 
-        self._thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state
-        )
+        self._thermostat.register_connection_callback(self.schedule_update_ha_state)
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_name = ENTITY_NAME_CONNECTED
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
-    @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
-        if (device := self._thermostat._conn._device) is None:
-            return None
-        if (details := device.details) is None:
-            return None
-        if "props" not in details:
-            return None
+    # @property
+    # def extra_state_attributes(self) -> dict[str, str] | None:
+    #     if (device := self._thermostat._conn._device) is None:
+    #         return None
+    #     if (details := device.details) is None:
+    #         return None
+    #     if "props" not in details:
+    #         return None
 
-        return json.loads(json.dumps(details["props"], default=lambda obj: None))
+    #     return json.loads(json.dumps(details["props"], default=lambda obj: None))
 
     @property
     def is_on(self) -> bool:
-        if self._thermostat._conn._conn is None:
-            return False
-
-        return self._thermostat._conn._conn.is_connected
+        return self._thermostat._conn.is_connected
 
 
 class BatterySensor(Base):

@@ -89,8 +89,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     thermostat = Thermostat(
         thermostat_config=thermostat_config,
-        device=device,
+        ble_device=device,
     )
+
+    try:
+        await thermostat.async_connect()
+    except Exception as e:
+        raise ConfigEntryNotReady(f"Could not connect to device: {e}")
 
     eq3_config_entry = Eq3ConfigEntry(eq3_config=eq3_config, thermostat=thermostat)
 
@@ -110,7 +115,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok:
         eq3_config_entry: Eq3ConfigEntry = hass.data[DOMAIN].pop(entry.entry_id)
-        eq3_config_entry.thermostat.shutdown()
+        await eq3_config_entry.thermostat.async_disconnect()
 
     return unload_ok
 

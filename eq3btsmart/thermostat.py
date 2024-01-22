@@ -7,14 +7,16 @@ To get the current state, update() has to be called for powersaving reasons.
 Schedule needs to be requested with query_schedule() before accessing for similar reasons.
 """
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Callable, Coroutine
+from typing import Callable
 
+from bleak import BleakClient
+from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from construct_typed import DataclassStruct
 
-from eq3btsmart.bleakconnection import BleakConnection
 from eq3btsmart.const import (
     DEFAULT_AWAY_HOURS,
     DEFAULT_AWAY_TEMP,
@@ -22,6 +24,9 @@ from eq3btsmart.const import (
     EQ3BT_MIN_TEMP,
     EQ3BT_OFF_TEMP,
     EQ3BT_ON_TEMP,
+    PROP_NOTIFY_UUID,
+    PROP_WRITE_UUID,
+    REQUEST_TIMEOUT,
     Command,
     Eq3Preset,
     OperationMode,
@@ -62,38 +67,44 @@ class Thermostat:
     def __init__(
         self,
         thermostat_config: ThermostatConfig,
-        device: BLEDevice | None = None,
-        get_device: Coroutine[None, None, BLEDevice] | None = None,
+        ble_device: BLEDevice,
     ):
         """Initialize the thermostat."""
-
-        if device is None and get_device is None:
-            raise Exception("Either device or get_device must be provided")
-
-        if device is not None and get_device is not None:
-            raise Exception("Either device or get_device must be provided")
 
         self.thermostat_config = thermostat_config
         self.status: Status = Status()
         self.device_data: DeviceData = DeviceData()
         self.schedule: Schedule = Schedule()
         self._on_update_callbacks: list[Callable] = []
-        self._conn = BleakConnection(
-            thermostat_config=self.thermostat_config,
-            device=device,
-            get_device=get_device,
-            callback=self.handle_notification,
+        self._on_connection_callbacks: list[Callable] = []
+        self._device = ble_device
+        self._conn: BleakClient = BleakClient(
+            ble_device,
+            disconnected_callback=lambda client: self.on_connection(),
+            timeout=REQUEST_TIMEOUT,
         )
+        self._lock = asyncio.Lock()
+
+    def register_connection_callback(self, on_connect: Callable) -> None:
+        """Register a callback function that will be called when a connection is established."""
+
+        self._on_connection_callbacks.append(on_connect)
 
     def register_update_callback(self, on_update: Callable) -> None:
         """Register a callback function that will be called when an update is received."""
 
         self._on_update_callbacks.append(on_update)
 
-    def shutdown(self) -> None:
+    async def async_connect(self) -> None:
+        """Connect to the thermostat."""
+
+        await self._conn.connect()
+        await self._conn.start_notify(PROP_NOTIFY_UUID, self.on_notification)
+
+    async def async_disconnect(self) -> None:
         """Shutdown the connection to the thermostat."""
 
-        self._conn.disconnect()
+        await self._conn.disconnect()
 
     async def async_get_id(self) -> None:
         """Query device identification information, e.g. the serial number."""
@@ -279,29 +290,47 @@ class Thermostat:
     async def _async_write_command(self, command: Eq3Command) -> None:
         """Write a EQ3 command to the thermostat."""
 
-        await self._conn.async_make_request(command.to_bytes())
+        if not self._conn.is_connected:
+            return
 
-    def handle_notification(self, data: bytes) -> None:
+        async with self._lock:
+            await self._conn.write_gatt_char(PROP_WRITE_UUID, command.to_bytes())
+
+            self.on_connection()
+
+    def on_connection(self) -> None:
+        for callback in self._on_connection_callbacks:
+            callback()
+
+    def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle Callback from a Bluetooth (GATT) request."""
 
         updated: bool = True
+        data_bytes = bytes(data)
 
-        command = DataclassStruct(Eq3Command).parse(data)
+        command = DataclassStruct(Eq3Command).parse(data_bytes)
+
+        if command.payload is None:
+            return
+
+        is_status_command = command.payload[0] == 0x01
 
         try:
             match command.cmd:
                 case Command.ID_RETURN:
-                    self.device_data = DeviceData.from_bytes(data)
+                    self.device_data = DeviceData.from_bytes(data_bytes)
                 case Command.INFO_RETURN:
-                    self.status = Status.from_bytes(data)
+                    if is_status_command:
+                        self.status = Status.from_bytes(data_bytes)
                 case Command.SCHEDULE_RETURN:
-                    schedule = Schedule.from_bytes(data)
+                    schedule = Schedule.from_bytes(data_bytes)
                     self.schedule.merge(schedule)
                 case _:
                     updated = False
         except Exception:
-            # print all bytes received in this format: Received: 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-            _LOGGER.exception("Received: %s", " ".join([f"0x{b:02x}" for b in data]))
+            _LOGGER.exception(
+                "Received: %s", " ".join([f"0x{b:02x}" for b in data_bytes])
+            )
             updated = False
 
         if not updated:

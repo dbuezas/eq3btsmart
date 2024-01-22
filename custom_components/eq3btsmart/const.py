@@ -2,7 +2,7 @@
 from enum import Enum
 
 from eq3btsmart.const import Adapter, OperationMode
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import PRESET_NONE, HVACMode
 from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_BOOST,
@@ -33,6 +33,7 @@ HA_TO_EQ_HVAC = {
 
 
 class Preset(str, Enum):
+    NONE = PRESET_NONE
     ECO = PRESET_ECO
     COMFORT = PRESET_COMFORT
     BOOST = PRESET_BOOST

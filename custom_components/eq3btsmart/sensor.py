@@ -22,8 +22,6 @@ from .const import (
     ENTITY_NAME_AWAY_END,
     ENTITY_NAME_FIRMWARE_VERSION,
     ENTITY_NAME_MAC,
-    ENTITY_NAME_PATH,
-    ENTITY_NAME_RETRIES,
     ENTITY_NAME_RSSI,
     ENTITY_NAME_SERIAL_NUMBER,
     ENTITY_NAME_VALVE,
@@ -54,8 +52,6 @@ async def async_setup_entry(
         new_devices += [
             RssiSensor(eq3_config, thermostat),
             MacSensor(eq3_config, thermostat),
-            RetriesSensor(eq3_config, thermostat),
-            PathSensor(eq3_config, thermostat),
         ]
 
     async_add_entities(new_devices)
@@ -123,17 +119,14 @@ class RssiSensor(Base):
     def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
         super().__init__(eq3_config, thermostat)
 
-        self._thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state
-        )
+        self._thermostat.register_connection_callback(self.schedule_update_ha_state)
         self._attr_name = ENTITY_NAME_RSSI
         self._attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def state(self) -> int | None:
-        return None
-        return self._thermostat._conn.rssi
+        return self._thermostat._device._rssi
 
 
 class SerialNumberSensor(Base):
@@ -204,43 +197,3 @@ class MacSensor(Base):
     @property
     def state(self) -> str | None:
         return self._eq3_config.mac_address
-
-
-class RetriesSensor(Base):
-    """Sensor for the number of retries."""
-
-    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
-        super().__init__(eq3_config, thermostat)
-
-        self._thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state
-        )
-        self._attr_name = ENTITY_NAME_RETRIES
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @property
-    def state(self) -> int:
-        return self._thermostat._conn.retries
-
-
-class PathSensor(Base):
-    """Sensor for the device path."""
-
-    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
-        super().__init__(eq3_config, thermostat)
-
-        self._thermostat._conn.register_connection_callback(
-            self.schedule_update_ha_state
-        )
-        self._attr_name = ENTITY_NAME_PATH
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @property
-    def state(self) -> str | None:
-        if self._thermostat._conn._conn is None:
-            return None
-
-        if not hasattr(self._thermostat._conn._conn._backend, "_device_path"):
-            return None
-
-        return self._thermostat._conn._conn._backend._device_path
