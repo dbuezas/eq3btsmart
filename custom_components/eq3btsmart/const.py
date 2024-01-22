@@ -102,7 +102,7 @@ class TargetTemperatureSelector(str, Enum):
 
 
 DEFAULT_ADAPTER = Adapter.AUTO
-DEFAULT_CURRENT_TEMP_SELECTOR = CurrentTemperatureSelector.UI
+DEFAULT_CURRENT_TEMP_SELECTOR = CurrentTemperatureSelector.DEVICE
 DEFAULT_TARGET_TEMP_SELECTOR = TargetTemperatureSelector.TARGET
 DEFAULT_STAY_CONNECTED = True
 DEFAULT_DEBUG_MODE = False
