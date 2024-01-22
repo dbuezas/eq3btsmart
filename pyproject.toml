@@ -14,8 +14,8 @@ python = ">=3.11,<3.13"
 bleak = "^0.21.1"
 construct = "^2.10.68"
 construct-typing = "^0.6.2"
-homeassistant = "^2023.1.1"
 bleak-retry-connector = "^3.4.0"
+pyserial = "^3.5"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.1.13"
@@ -23,6 +23,10 @@ mypy = "^1.8.0"
 pre-commit = "^3.6.0"
 homeassistant-stubs = "^2023.1.1"
 voluptuous-stubs = "^0.1.1"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.4"
 
 [build-system]
 requires = ["poetry-core"]
@@ -34,3 +38,8 @@ unfixable = ["F401"]
 [tool.mypy]
 check_untyped_defs = true
 explicit_package_bases = true
+
+[tool.pytest]
+testpaths = [
+    "tests",
+]

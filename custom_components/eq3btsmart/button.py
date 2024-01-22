@@ -1,76 +1,32 @@
-import datetime
+"""Platform for eQ-3 button entities."""
+
 import logging
 
-import voluptuous as vol
+from custom_components.eq3btsmart.eq3_entity import Eq3Entity
+from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
-from eq3btsmart.const import EQ3BT_MAX_TEMP, EQ3BT_MIN_TEMP, HOUR_24_PLACEHOLDER
+from eq3btsmart.const import WeekDay
+from eq3btsmart.eq3_schedule_time import Eq3ScheduleTime
+from eq3btsmart.eq3_temperature import Eq3Temperature
+from eq3btsmart.models import Schedule, ScheduleDay, ScheduleHour
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
+from homeassistant.const import WEEKDAYS
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_DEBUG_MODE, DOMAIN
+from .const import (
+    DOMAIN,
+    ENTITY_NAME_FETCH,
+    ENTITY_NAME_FETCH_SCHEDULE,
+    SERVICE_SET_SCHEDULE,
+)
+from .schemas import SCHEMA_SCHEDULE_SET
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def times_and_temps_schema(value):
-    """Validate times."""
-
-    def v_assert(bool, error):
-        if not bool:
-            raise vol.Invalid(error)
-
-    def time(i):
-        return value.get(f"next_change_at_{i}")
-
-    def temp(i):
-        return value.get(f"target_temp_{i}")
-
-    v_assert(temp(0), f"Missing target_temp_{0}")
-    if time(0):
-        v_assert(temp(1), f"Missing target_temp_{1} after: {time(0)}")
-    for i in range(1, 7):
-        if time(i):
-            v_assert(time(i - 1), f"Missing next_change_at_{i-1} before: {time(i)}")
-            v_assert(
-                time(i - 1) < time(i),
-                f"Times not in order at next_change_at_{i}: {time(i-1)}≥{time(i)}",
-            )
-            v_assert(temp(i + 1), f"Missing target_temp_{i+1} after: {time(i)}")
-        if temp(i):
-            v_assert(temp(i - 1), f"Missing target_temp_{i-1} before: {time(i-1)}")
-            v_assert(time(i - 1), f"Missing next_change_at_{i-1} after: {time(i-2)}")
-    return value
-
-
-EQ3_TEMPERATURE = vol.Range(min=EQ3BT_MIN_TEMP, max=EQ3BT_MAX_TEMP)
-
-SCHEDULE_SCHEMA = {
-    vol.Required("days"): cv.weekdays,
-    vol.Required("target_temp_0"): EQ3_TEMPERATURE,
-    vol.Optional("next_change_at_0"): cv.time,
-    vol.Optional("target_temp_1"): EQ3_TEMPERATURE,
-    vol.Optional("next_change_at_1"): cv.time,
-    vol.Optional("target_temp_2"): EQ3_TEMPERATURE,
-    vol.Optional("next_change_at_2"): cv.time,
-    vol.Optional("target_temp_3"): EQ3_TEMPERATURE,
-    vol.Optional("next_change_at_3"): cv.time,
-    vol.Optional("target_temp_4"): EQ3_TEMPERATURE,
-    vol.Optional("next_change_at_4"): cv.time,
-    vol.Optional("target_temp_5"): EQ3_TEMPERATURE,
-    vol.Optional("next_change_at_5"): cv.time,
-    vol.Optional("target_temp_6"): EQ3_TEMPERATURE,
-}
-
-SET_SCHEDULE_SCHEMA = vol.All(
-    cv.make_entity_service_schema(SCHEDULE_SCHEMA),
-    times_and_temps_schema,
-)
 
 
 async def async_setup_entry(
@@ -78,30 +34,34 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Add sensors for passed config_entry in HA."""
-    eq3 = hass.data[DOMAIN][config_entry.entry_id]
-    debug_mode = config_entry.options.get(CONF_DEBUG_MODE, False)
-    new_devices: list[Entity] = [FetchScheduleButton(eq3)]
-    async_add_entities(new_devices)
+    """Called when an entry is setup."""
 
-    if debug_mode:
-        new_devices = [FetchButton(eq3)]
-        async_add_entities(new_devices)
+    eq3_config_entry: Eq3ConfigEntry = hass.data[DOMAIN][config_entry.entry_id]
+    thermostat = eq3_config_entry.thermostat
+    eq3_config = eq3_config_entry.eq3_config
+
+    entities_to_add: list[Entity] = [FetchScheduleButton(eq3_config, thermostat)]
+    if eq3_config.debug_mode:
+        entities_to_add += [
+            FetchButton(eq3_config, thermostat),
+        ]
+
+    async_add_entities(entities_to_add)
 
     platform = entity_platform.async_get_current_platform()
-
     platform.async_register_entity_service(
-        "set_schedule",
-        SET_SCHEDULE_SCHEMA,  # type: ignore
-        "set_schedule",
+        SERVICE_SET_SCHEDULE,
+        SCHEMA_SCHEDULE_SET,
+        SERVICE_SET_SCHEDULE,
     )
 
 
-class Base(ButtonEntity):
-    """Representation of an eQ-3 Bluetooth Smart thermostat."""
+class Base(Eq3Entity, ButtonEntity):
+    """Base class for all eQ-3 buttons."""
 
-    def __init__(self, _thermostat: Thermostat):
-        self._thermostat = _thermostat
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
         self._attr_has_entity_name = True
 
     @property
@@ -109,72 +69,92 @@ class Base(ButtonEntity):
         if self.name is None or isinstance(self.name, UndefinedType):
             return None
 
-        return format_mac(self._thermostat.mac) + "_" + self.name
+        return format_mac(self._eq3_config.mac_address) + "_" + self.name
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._thermostat.mac)},
+            identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
 
 
 class FetchScheduleButton(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        _thermostat.register_update_callback(self.schedule_update_ha_state)
-        self._attr_name = "Fetch Schedule"
+    """Button to fetch the schedule from the thermostat."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._thermostat.register_update_callback(self.schedule_update_ha_state)
+        self._attr_name = ENTITY_NAME_FETCH_SCHEDULE
 
     async def async_press(self) -> None:
-        await self.fetch_schedule()
+        await self._thermostat.async_get_schedule()
 
-    async def fetch_schedule(self):
-        for x in range(0, 7):
-            await self._thermostat.async_query_schedule(x)
         _LOGGER.debug(
-            "[%s] schedule (day %s): %s",
-            self._thermostat.name,
-            self._thermostat.schedule,
+            f"[{self._eq3_config.name}] schedule: {self._thermostat.schedule}",
         )
 
     async def set_schedule(self, **kwargs) -> None:
-        _LOGGER.debug("[%s] set_schedule (day %s)", self._thermostat.name, kwargs)
+        """Called when the set_schedule service is invoked."""
+
+        _LOGGER.debug(f"[{self._eq3_config.name}] set_schedule: {kwargs}")
+
+        schedule = Schedule()
         for day in kwargs["days"]:
+            index = WEEKDAYS.index(day)
+            week_day = WeekDay.from_index(index)
+
+            schedule_hours: list[ScheduleHour] = []
+            schedule_day = ScheduleDay(week_day=week_day, schedule_hours=schedule_hours)
+
             times = [
-                kwargs.get(f"next_change_at_{i}", datetime.time(0, 0)) for i in range(6)
+                kwargs.get(f"next_change_at_{i}", None)
+                for i in range(6)
+                if f"next_change_at_{i}" in kwargs
             ]
-            times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
-            temps = [kwargs.get(f"target_temp_{i}", 0) for i in range(7)]
-            hours = []
-            for i in range(0, 6):
-                hours.append(
-                    {
-                        "target_temp": temps[i],
-                        "next_change_at": times[i],
-                    }
+            # times[times.index(datetime.time(0, 0))] = HOUR_24_PLACEHOLDER
+            temps = [kwargs.get(f"target_temp_{i}", None) for i in range(6)]
+
+            times = list(filter(None, times))
+            temps = list(filter(None, temps))
+
+            if len(times) != len(temps) - 1:
+                raise ValueError("Times and temps must be of equal length")
+
+            for time, temp in zip(times, temps):
+                schedule_hour = ScheduleHour(
+                    target_temperature=Eq3Temperature(temp),
+                    next_change_at=Eq3ScheduleTime(time),
                 )
-            await self._thermostat.async_set_schedule(day=day, hours=hours)
+                schedule_hours.append(schedule_hour)
+
+            schedule.schedule_days.append(schedule_day)
+
+        await self._thermostat.async_set_schedule(schedule=schedule)
 
     @property
     def extra_state_attributes(self):
         schedule = {}
-        for day in self._thermostat.schedule:
-            day_raw = self._thermostat.schedule[day]
-            day_nice = {"day": day}
-            for i, entry in enumerate(day_raw.hours):
-                day_nice[f"target_temp_{i}"] = entry.target_temp
-                if entry.next_change_at == HOUR_24_PLACEHOLDER:
-                    break
-                day_nice[f"next_change_at_{i}"] = entry.next_change_at.isoformat()
-            schedule[day] = day_nice
+        for day in self._thermostat.schedule.schedule_days:
+            schedule[str(day.week_day)] = [
+                {
+                    "target_temperature": schedule_hour.target_temperature.friendly_value,
+                    "next_change_at": schedule_hour.next_change_at.friendly_value.isoformat(),
+                }
+                for schedule_hour in day.schedule_hours
+            ]
 
-        return schedule
+        return {"schedule": schedule}
 
 
 class FetchButton(Base):
-    def __init__(self, _thermostat: Thermostat):
-        super().__init__(_thermostat)
-        self._attr_name = "Fetch"
+    """Button to fetch the current state from the thermostat."""
+
+    def __init__(self, eq3_config: Eq3Config, thermostat: Thermostat):
+        super().__init__(eq3_config, thermostat)
+
+        self._attr_name = ENTITY_NAME_FETCH
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
-        await self._thermostat.async_update()
+        await self._thermostat.async_get_info()

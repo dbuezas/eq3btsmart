@@ -1,122 +1,89 @@
-""" Contains construct adapters and structures. """
-from datetime import datetime, time, timedelta
+"""Structures for the eQ-3 Bluetooth Smart Thermostat."""
+from dataclasses import dataclass
 
 from construct import (
     Adapter,
     Bytes,
     Const,
-    Enum,
-    FlagsEnum,
+    Flag,
+    GreedyBytes,
     GreedyRange,
-    IfThenElse,
     Int8ub,
     Optional,
-    Struct,
 )
+from construct_typed import DataclassMixin, DataclassStruct, TEnum, TFlagsEnum, csfield
 
 from eq3btsmart.const import (
-    HOUR_24_PLACEHOLDER,
-    NAME_TO_CMD,
-    NAME_TO_DAY,
-    PROP_ID_RETURN,
-    PROP_INFO_RETURN,
+    Command,
+    StatusFlags,
+    WeekDay,
 )
+from eq3btsmart.eq3_away_time import Eq3AwayTime
+from eq3btsmart.eq3_duration import Eq3Duration
+from eq3btsmart.eq3_schedule_time import Eq3ScheduleTime
+from eq3btsmart.eq3_temperature import Eq3Temperature
+from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
+from eq3btsmart.eq3_time import Eq3Time
 
 
-class TimeAdapter(Adapter):
-    """Adapter to encode and decode schedule times."""
+class Eq3TimeAdapter(Adapter):
+    """Adapter to encode and decode time data."""
 
-    def _decode(self, obj, ctx, path):
-        h, m = divmod(obj * 10, 60)
-        if h == 24:  # HACK, can we do better?
-            return HOUR_24_PLACEHOLDER
-        return time(hour=h, minute=m)
+    def _decode(self, obj: bytes, ctx, path) -> Eq3Time:
+        return Eq3Time.from_device(obj)
 
-    def _encode(self, obj, ctx, path):
-        # TODO: encode h == 24 hack
-        if obj == HOUR_24_PLACEHOLDER:
-            return int(24 * 60 / 10)
-        encoded = int((obj.hour * 60 + obj.minute) / 10)
-        return encoded
+    def _encode(self, obj: Eq3Time, ctx, path) -> bytes:
+        return obj
 
 
-class TempAdapter(Adapter):
-    """Adapter to encode and decode temperature."""
+class Eq3ScheduleTimeAdapter(Adapter):
+    """Adapter to encode and decode schedule time data."""
 
-    def _decode(self, obj, ctx, path):
-        return float(obj / 2.0)
+    def _decode(self, obj: int, ctx, path) -> Eq3ScheduleTime:
+        return Eq3ScheduleTime.from_device(obj)
 
-    def _encode(self, obj, ctx, path):
-        return int(obj * 2.0)
-
-
-class WindowOpenTimeAdapter(Adapter):
-    """Adapter to encode and decode window open times (5 min increments)."""
-
-    def _decode(self, obj, context, path):
-        return timedelta(minutes=float(obj * 5.0))
-
-    def _encode(self, obj, context, path):
-        if isinstance(obj, timedelta):
-            obj = obj.seconds
-        if 0 <= obj <= 3600.0:
-            return int(obj / 300.0)
-        raise ValueError(
-            "Window open time must be between 0 and 60 minutes "
-            "in intervals of 5 minutes."
-        )
+    def _encode(self, obj: Eq3ScheduleTime, ctx, path) -> int:
+        return obj
 
 
-class TempOffsetAdapter(Adapter):
-    """Adapter to encode and decode the temperature offset."""
+class Eq3TemperatureAdapter(Adapter):
+    """Adapter to encode and decode temperature data."""
 
-    def _decode(self, obj, context, path):
-        return float((obj - 7) / 2.0)
+    def _decode(self, obj: int, ctx, path) -> Eq3Temperature:
+        return Eq3Temperature.from_device(obj)
 
-    def _encode(self, obj, context, path):
-        if -3.5 <= obj <= 3.5:
-            return int(obj * 2.0) + 7
-        raise ValueError(
-            "Temperature offset must be between -3.5 and 3.5 (in " "intervals of 0.5)."
-        )
+    def _encode(self, obj: Eq3Temperature, ctx, path) -> int:
+        return obj
 
 
-ModeFlags = "ModeFlags" / FlagsEnum(
-    Int8ub,
-    AUTO=0x00,  # always True, doesnt affect building
-    MANUAL=0x01,
-    AWAY=0x02,
-    BOOST=0x04,
-    DST=0x08,
-    WINDOW=0x10,
-    LOCKED=0x20,
-    UNKNOWN=0x40,
-    LOW_BATTERY=0x80,
-)
+class Eq3TemperatureOffsetAdapter(Adapter):
+    """Adapter to encode and decode temperature offset data."""
+
+    def _decode(self, obj: int, ctx, path) -> Eq3TemperatureOffset:
+        return Eq3TemperatureOffset.from_device(obj)
+
+    def _encode(self, obj: Eq3TemperatureOffset, ctx, path) -> int:
+        return obj
 
 
-class AwayDataAdapter(Adapter):
-    """Adapter to encode and decode away data."""
+class Eq3DurationAdapter(Adapter):
+    """Adapter to encode and decode duration data."""
 
-    def _decode(self, obj, ctx, path):
-        (day, year, hour_min, month) = obj
-        year += 2000
+    def _decode(self, obj: int, ctx, path) -> Eq3Duration:
+        return Eq3Duration.from_device(obj)
 
-        min = 0
-        if hour_min & 0x01:
-            min = 30
-        hour = int(hour_min / 2)
+    def _encode(self, obj: Eq3Duration, ctx, path) -> int:
+        return obj
 
-        return datetime(year=year, month=month, day=day, hour=hour, minute=min)
 
-    def _encode(self, obj, ctx, path):
-        if obj.year < 2000 or obj.year > 2099:
-            raise Exception("Invalid year, possible [2000,2099]")
-        year = obj.year - 2000
-        hour = obj.hour * 2
-        if obj.minute:  # we encode all minute values to h:30
-            hour |= 0x01
-        return (obj.day, year, hour, obj.month)
+class Eq3AwayTimeAdapter(Adapter):
+    """Adapter to encode and decode away time data."""
+
+    def _decode(self, obj: bytes, ctx, path) -> Eq3AwayTime | None:
+        return Eq3AwayTime.from_device(obj)
+
+    def _encode(self, obj: Eq3AwayTime, ctx, path) -> bytes:
+        return obj
 
 
 class DeviceSerialAdapter(Adapter):
@@ -126,46 +93,182 @@ class DeviceSerialAdapter(Adapter):
         return bytearray(n - 0x30 for n in obj).decode()
 
 
-Status = "Status" / Struct(
-    "cmd" / Const(PROP_INFO_RETURN, Int8ub),
-    Const(0x01, Int8ub),
-    "mode" / ModeFlags,
-    "valve" / Int8ub,
-    Const(0x04, Int8ub),
-    "target_temp" / TempAdapter(Int8ub),
-    "away"
-    / IfThenElse(
-        lambda ctx: ctx.mode.AWAY, AwayDataAdapter(Bytes(4)), Optional(Bytes(4))
-    ),
-    "presets"
-    / Optional(
-        Struct(
-            "window_open_temp" / TempAdapter(Int8ub),
-            "window_open_time" / WindowOpenTimeAdapter(Int8ub),
-            "comfort_temp" / TempAdapter(Int8ub),
-            "eco_temp" / TempAdapter(Int8ub),
-            "offset" / TempOffsetAdapter(Int8ub),
-        )
-    ),
-)
+@dataclass
+class PresetsStruct(DataclassMixin):
+    """Structure for presets data."""
 
-Schedule = "Schedule" / Struct(
-    "cmd" / Enum(Int8ub, **NAME_TO_CMD),
-    "day" / Enum(Int8ub, **NAME_TO_DAY),
-    "hours"
-    / GreedyRange(
-        Struct(
-            "target_temp" / TempAdapter(Int8ub),
-            "next_change_at" / TimeAdapter(Int8ub),
-        )
-    ),
-)
+    window_open_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    window_open_time: Eq3Duration = csfield(Eq3DurationAdapter(Int8ub))
+    comfort_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    eco_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    offset: Eq3TemperatureOffset = csfield(Eq3TemperatureOffsetAdapter(Int8ub))
 
-DeviceId = "DeviceId" / Struct(
-    "cmd" / Const(PROP_ID_RETURN, Int8ub),
-    "version" / Int8ub,
-    Int8ub,
-    Int8ub,
-    "serial" / DeviceSerialAdapter(Bytes(10)),
-    Int8ub,
-)
+
+@dataclass
+class StatusStruct(DataclassMixin):
+    """Structure for status data."""
+
+    cmd: int = csfield(Const(Command.INFO_RETURN, Int8ub))
+    const_1: int = csfield(Const(0x01, Int8ub))
+    mode: StatusFlags = csfield(TFlagsEnum(Int8ub, StatusFlags))
+    valve: int = csfield(Int8ub)
+    const_2: int = csfield(Const(0x04, Int8ub))
+    target_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    away: Eq3AwayTime | None = csfield(Optional(Eq3AwayTimeAdapter(Bytes(4))))
+    presets: PresetsStruct | None = csfield(Optional(DataclassStruct(PresetsStruct)))
+
+
+@dataclass
+class ScheduleHourStruct(DataclassMixin):
+    """Structure for schedule entry data."""
+
+    target_temp: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    next_change_at: Eq3ScheduleTime = csfield(Eq3ScheduleTimeAdapter(Int8ub))
+
+
+@dataclass
+class ScheduleDayStruct(DataclassMixin):
+    """Structure for schedule data."""
+
+    day: WeekDay = csfield(TEnum(Int8ub, WeekDay))
+    hours: list[ScheduleHourStruct] = csfield(
+        GreedyRange(DataclassStruct(ScheduleHourStruct))
+    )
+
+
+@dataclass
+class DeviceIdStruct(DataclassMixin):
+    """Structure for device data."""
+
+    cmd: int = csfield(Const(Command.ID_RETURN, Int8ub))
+    version: int = csfield(Int8ub)
+    unknown_1: int = csfield(Int8ub)
+    unknown_2: int = csfield(Int8ub)
+    serial: str = csfield(DeviceSerialAdapter(Bytes(10)))
+    unknown_3: int = csfield(Int8ub)
+
+
+@dataclass
+class Eq3Command(DataclassMixin):
+    """Structure for eQ-3 commands."""
+
+    cmd: int = csfield(Int8ub)
+    payload: bytes | None = csfield(Optional(GreedyBytes))
+
+    def to_bytes(self) -> bytes:
+        """Convert the command to bytes."""
+
+        return DataclassStruct(self.__class__).build(self)
+
+
+@dataclass
+class IdGetCommand(Eq3Command):
+    """Structure for ID get command."""
+
+    cmd: int = csfield(Const(Command.ID_GET, Int8ub))
+
+
+@dataclass
+class InfoGetCommand(Eq3Command):
+    """Structure for info get command."""
+
+    cmd: int = csfield(Const(Command.INFO_GET, Int8ub))
+    time: Eq3Time = csfield(Eq3TimeAdapter(Bytes(6)))
+
+
+@dataclass
+class ComfortEcoConfigureCommand(Eq3Command):
+    """Structure for schedule get command."""
+
+    cmd: int = csfield(Const(Command.COMFORT_ECO_CONFIGURE, Int8ub))
+    comfort_temperature: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    eco_temperature: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+
+
+@dataclass
+class OffsetConfigureCommand(Eq3Command):
+    """Structure for offset configure command."""
+
+    cmd: int = csfield(Const(Command.OFFSET_CONFIGURE, Int8ub))
+    offset: Eq3TemperatureOffset = csfield(Eq3TemperatureOffsetAdapter(Int8ub))
+
+
+@dataclass
+class WindowOpenConfigureCommand(Eq3Command):
+    """Structure for window open configure command."""
+
+    cmd: int = csfield(Const(Command.WINDOW_OPEN_CONFIGURE, Int8ub))
+    window_open_temperature: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+    window_open_time: Eq3Duration = csfield(Eq3DurationAdapter(Int8ub))
+
+
+@dataclass
+class ScheduleGetCommand(Eq3Command):
+    """Structure for schedule get command."""
+
+    cmd: int = csfield(Const(Command.SCHEDULE_GET, Int8ub))
+    day: WeekDay = csfield(TEnum(Int8ub, WeekDay))
+
+
+@dataclass
+class ModeSetCommand(Eq3Command):
+    """Structure for mode set command."""
+
+    cmd: int = csfield(Const(Command.MODE_SET, Int8ub))
+    mode: int = csfield(Int8ub)
+
+
+@dataclass
+class AwaySetCommand(ModeSetCommand):
+    """Structure for away set command."""
+
+    away_until: Eq3AwayTime = csfield(Eq3AwayTimeAdapter(Bytes(4)))
+
+
+@dataclass
+class TemperatureSetCommand(Eq3Command):
+    """Structure for temperature set command."""
+
+    cmd: int = csfield(Const(Command.TEMPERATURE_SET, Int8ub))
+    temperature: Eq3Temperature = csfield(Eq3TemperatureAdapter(Int8ub))
+
+
+@dataclass
+class ScheduleSetCommand(Eq3Command):
+    """Structure for schedule set command."""
+
+    cmd: int = csfield(Const(Command.SCHEDULE_SET, Int8ub))
+    day: WeekDay = csfield(TEnum(Int8ub, WeekDay))
+    hours: list[ScheduleHourStruct] = csfield(
+        GreedyRange(DataclassStruct(ScheduleHourStruct))
+    )
+
+
+@dataclass
+class ComfortSetCommand(Eq3Command):
+    """Structure for comfort set command."""
+
+    cmd: int = csfield(Const(Command.COMFORT_SET, Int8ub))
+
+
+@dataclass
+class EcoSetCommand(Eq3Command):
+    """Structure for eco set command."""
+
+    cmd: int = csfield(Const(Command.ECO_SET, Int8ub))
+
+
+@dataclass
+class BoostSetCommand(Eq3Command):
+    """Structure for boost set command."""
+
+    cmd: int = csfield(Const(Command.BOOST_SET, Int8ub))
+    enable: bool = csfield(Flag)
+
+
+@dataclass
+class LockSetCommand(Eq3Command):
+    """Structure for lock set command."""
+
+    cmd: int = csfield(Const(Command.LOCK_SET, Int8ub))
+    enable: bool = csfield(Flag)
