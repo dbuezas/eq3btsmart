@@ -33,6 +33,7 @@ from eq3btsmart.const import (
     WeekDay,
 )
 from eq3btsmart.eq3_away_time import Eq3AwayTime
+from eq3btsmart.eq3_connection_monitor import Eq3ConnectionMonitor
 from eq3btsmart.eq3_duration import Eq3Duration
 from eq3btsmart.eq3_temperature import Eq3Temperature
 from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
@@ -84,6 +85,7 @@ class Thermostat:
             timeout=REQUEST_TIMEOUT,
         )
         self._lock = asyncio.Lock()
+        self._monitor = Eq3ConnectionMonitor(self._conn)
 
     def register_connection_callback(self, on_connect: Callable) -> None:
         """Register a callback function that will be called when a connection is established."""
@@ -101,9 +103,13 @@ class Thermostat:
         await self._conn.connect()
         await self._conn.start_notify(PROP_NOTIFY_UUID, self.on_notification)
 
+        loop = asyncio.get_running_loop()
+        loop.create_task(self._monitor.run())
+
     async def async_disconnect(self) -> None:
         """Shutdown the connection to the thermostat."""
 
+        await self._monitor.stop()
         await self._conn.disconnect()
 
     async def async_get_id(self) -> None:
