@@ -2,6 +2,8 @@ import asyncio
 
 from bleak import BleakClient
 
+from eq3btsmart.const import MONITOR_INTERVAL
+
 
 class Eq3ConnectionMonitor:
     def __init__(self, client: BleakClient):
@@ -18,7 +20,7 @@ class Eq3ConnectionMonitor:
             except Exception:
                 pass
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(MONITOR_INTERVAL)
 
     async def stop(self):
         self._run = False

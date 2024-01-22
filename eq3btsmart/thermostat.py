@@ -24,9 +24,9 @@ from eq3btsmart.const import (
     EQ3BT_MIN_TEMP,
     EQ3BT_OFF_TEMP,
     EQ3BT_ON_TEMP,
-    PROP_NOTIFY_UUID,
-    PROP_WRITE_UUID,
+    NOTIFY_CHARACTERISTIC_UUID,
     REQUEST_TIMEOUT,
+    WRITE_CHARACTERISTIC_UUID,
     Command,
     Eq3Preset,
     OperationMode,
@@ -101,7 +101,7 @@ class Thermostat:
         """Connect to the thermostat."""
 
         await self._conn.connect()
-        await self._conn.start_notify(PROP_NOTIFY_UUID, self.on_notification)
+        await self._conn.start_notify(NOTIFY_CHARACTERISTIC_UUID, self.on_notification)
 
         loop = asyncio.get_running_loop()
         loop.create_task(self._monitor.run())
@@ -300,7 +300,9 @@ class Thermostat:
             return
 
         async with self._lock:
-            await self._conn.write_gatt_char(PROP_WRITE_UUID, command.to_bytes())
+            await self._conn.write_gatt_char(
+                WRITE_CHARACTERISTIC_UUID, command.to_bytes()
+            )
 
             self.on_connection()
 
