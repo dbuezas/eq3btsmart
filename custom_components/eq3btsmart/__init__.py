@@ -4,7 +4,6 @@ import logging
 from typing import Any
 
 from bleak.backends.device import BLEDevice
-from bleak_retry_connector import NO_RSSI_VALUE
 from eq3btsmart import Thermostat
 from eq3btsmart.thermostat_config import ThermostatConfig
 from homeassistant.components import bluetooth
@@ -140,8 +139,7 @@ async def async_get_device(hass: HomeAssistant, config: Eq3Config) -> BLEDevice:
             bluetooth.async_scanner_devices_by_address(
                 hass=hass, address=config.mac_address, connectable=True
             ),
-            key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi
-            or NO_RSSI_VALUE,
+            key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi,
             reverse=True,
         )
         if config.adapter == Adapter.LOCAL:
