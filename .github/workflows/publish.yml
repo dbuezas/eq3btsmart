@@ -58,6 +58,11 @@ jobs:
   package:
     needs: version
     runs-on: ubuntu-latest
+    environment:
+      name: publish
+      url: https://pypi.org/project/eq3btsmart/
+    permissions:
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,10 +108,8 @@ jobs:
         run: |
           poetry build
 
-      - name: Upload package to pyPI
-        run: |
-          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-          poetry publish
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Upload package to release
         uses: actions/upload-release-asset@v1
