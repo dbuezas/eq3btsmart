@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "eq3btsmart"
-version = "0.0.0"
+version = "0.0.1"
 description = ""
 authors = ["David Buezas, Lennard Beers"]
 readme = "README.md"
