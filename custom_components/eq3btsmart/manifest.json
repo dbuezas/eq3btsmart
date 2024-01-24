@@ -3,7 +3,7 @@
   "name": "eQ-3 Bluetooth Smart Thermostats",
   "documentation": "https://github.com/dbuezas/eq3btsmart",
   "issue_tracker": "https://github.com/dbuezas/eq3btsmart/issues",
-  "requirements": ["git+https://github.com/dbuezas/eq3btsmart.git@develop"],
+  "requirements": ["git+https://github.com/dbuezas/eq3btsmart.git@develop#eq3btsmart"],
   "after_dependencies": ["bluetooth"],
   "dependencies": ["bluetooth_adapters"],
   "codeowners": ["@dbuezas", "@eulemitkeule", "@rytilahti", "@lkempf"],
