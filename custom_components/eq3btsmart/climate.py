@@ -243,9 +243,6 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         if self._thermostat.status.operation_mode is None:
             return None
 
-        if self._thermostat.status.target_temperature == EQ3BT_OFF_TEMP:
-            return HVACMode.OFF
-
         return EQ_TO_HA_HVAC[self._thermostat.status.operation_mode]
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
