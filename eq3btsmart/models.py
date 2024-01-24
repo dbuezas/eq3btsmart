@@ -53,10 +53,13 @@ class Status:
 
     @property
     def operation_mode(self) -> OperationMode | None:
-        if self.target_temperature == EQ3BT_OFF_TEMP:
+        if self.target_temperature is None:
+            return self._operation_mode
+
+        if self.target_temperature.friendly_value == EQ3BT_OFF_TEMP:
             return OperationMode.OFF
 
-        if self.target_temperature == EQ3BT_ON_TEMP:
+        if self.target_temperature.friendly_value == EQ3BT_ON_TEMP:
             return OperationMode.ON
 
         return self._operation_mode
