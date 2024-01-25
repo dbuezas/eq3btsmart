@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from bleak.backends.device import BLEDevice
+from bleak_esphome.backend.scanner import ESPHomeScanner
 from eq3btsmart import Thermostat
 from eq3btsmart.thermostat_config import ThermostatConfig
 from homeassistant.components import bluetooth
@@ -135,27 +136,34 @@ async def async_get_device(hass: HomeAssistant, config: Eq3Config) -> BLEDevice:
         if device is None:
             raise Exception("Device not found")
     else:
-        device_advertisement_datas = sorted(
+        scanner_devices = sorted(
             bluetooth.async_scanner_devices_by_address(
                 hass=hass, address=config.mac_address, connectable=True
             ),
             key=lambda device_advertisement_data: device_advertisement_data.advertisement.rssi,
             reverse=True,
         )
+
+        scanner_devices = [
+            scanner_device
+            for scanner_device in scanner_devices
+            if not (isinstance(scanner_device.scanner, ESPHomeScanner))
+        ]
+
         if config.adapter == Adapter.LOCAL:
-            if len(device_advertisement_datas) == 0:
+            if len(scanner_devices) == 0:
                 raise Exception("Device not found")
-            d_and_a = device_advertisement_datas[0]
+            scanner_device = scanner_devices[0]
         else:  # adapter is e.g /org/bluez/hci0
             list = [
                 x
-                for x in device_advertisement_datas
+                for x in scanner_devices
                 if (d := x.ble_device.details)
                 and d.get("props", {}).get("Adapter") == config.adapter
             ]
             if len(list) == 0:
                 raise Exception("Device not found")
-            d_and_a = list[0]
-        device = d_and_a.ble_device
+            scanner_device = list[0]
+        device = scanner_device.ble_device
 
     return device
