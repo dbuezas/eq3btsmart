@@ -5,7 +5,7 @@ from bleak import BleakClient
 from eq3btsmart.const import MONITOR_INTERVAL
 
 
-class Eq3ConnectionMonitor:
+class ConnectionMonitor:
     def __init__(self, client: BleakClient):
         self._client = client
         self._run = False

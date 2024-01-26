@@ -5,8 +5,6 @@ import logging
 from datetime import timedelta
 from typing import Callable
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from eq3btsmart.const import EQ3BT_MAX_TEMP, EQ3BT_OFF_TEMP, Eq3Preset, OperationMode
 from homeassistant.components.climate import ClimateEntity, HVACMode
@@ -38,6 +36,8 @@ from .const import (
     Preset,
     TargetTemperatureSelector,
 )
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         if (
             self._thermostat.status.target_temperature is not None
             and self._target_temperature_to_set
-            == self._thermostat.status.target_temperature.friendly_value
+            == self._thermostat.status.target_temperature.value
         ):
             self._is_setting_temperature = False
 
@@ -123,7 +123,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         ):
             # temperature may have been updated from the thermostat
             self._target_temperature_to_set = (
-                self._thermostat.status.target_temperature.friendly_value
+                self._thermostat.status.target_temperature.value
             )
 
         if self.entity_id is None:
@@ -161,7 +161,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                     return None
                 return (
                     (1 - self._thermostat.status.valve / 100) * 2
-                    + self._thermostat.status.target_temperature.friendly_value
+                    + self._thermostat.status.target_temperature.value
                     - 2
                 )
             case CurrentTemperatureSelector.UI:
@@ -170,7 +170,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 if self._thermostat.status.target_temperature is None:
                     return None
 
-                return self._thermostat.status.target_temperature.friendly_value
+                return self._thermostat.status.target_temperature.value
             case CurrentTemperatureSelector.ENTITY:
                 state = self.hass.states.get(self._eq3_config.external_temp_sensor)
                 if state is not None:
@@ -190,7 +190,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 if self._thermostat.status.target_temperature is None:
                     return None
 
-                return self._thermostat.status.target_temperature.friendly_value
+                return self._thermostat.status.target_temperature.value
 
         return None
 
@@ -253,7 +253,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             case _:
                 if self._thermostat.status.target_temperature is not None:
                     self._target_temperature_to_set = (
-                        self._thermostat.status.target_temperature.friendly_value
+                        self._thermostat.status.target_temperature.value
                     )
                 self._is_setting_temperature = False
 
@@ -313,8 +313,11 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 await self._thermostat.async_set_mode(OperationMode.ON)
 
         # by now, the target temperature should have been (maybe set) and fetched
-        self._target_temperature_to_set = self._thermostat.status.target_temperature
-        self._is_setting_temperature = False
+        if self._thermostat.status.target_temperature is not None:
+            self._target_temperature_to_set = (
+                self._thermostat.status.target_temperature.value
+            )
+            self._is_setting_temperature = False
 
     @property
     def device_info(self) -> DeviceInfo | None:

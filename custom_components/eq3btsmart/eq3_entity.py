@@ -1,6 +1,7 @@
-from custom_components.eq3btsmart.models import Eq3Config
 from eq3btsmart.thermostat import Thermostat
 from homeassistant.helpers.entity import Entity
+
+from .models import Eq3Config
 
 
 class Eq3Entity(Entity):

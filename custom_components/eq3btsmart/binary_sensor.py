@@ -1,8 +1,6 @@
 """Platform for eQ-3 binary sensor entities."""
 
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -23,6 +21,8 @@ from .const import (
     ENTITY_NAME_MONITORING,
     ENTITY_NAME_WINDOW_OPEN,
 )
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 
 
 async def async_setup_entry(

@@ -2,12 +2,10 @@
 
 import logging
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
+from eq3btsmart.adapter.eq3_schedule_time import Eq3ScheduleTime
+from eq3btsmart.adapter.eq3_temperature import Eq3Temperature
 from eq3btsmart.const import WeekDay
-from eq3btsmart.eq3_schedule_time import Eq3ScheduleTime
-from eq3btsmart.eq3_temperature import Eq3Temperature
 from eq3btsmart.models import Schedule, ScheduleDay, ScheduleHour
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
@@ -24,6 +22,8 @@ from .const import (
     ENTITY_NAME_FETCH_SCHEDULE,
     SERVICE_SET_SCHEDULE,
 )
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 from .schemas import SCHEMA_SCHEDULE_SET
 
 _LOGGER = logging.getLogger(__name__)
@@ -138,8 +138,8 @@ class FetchScheduleButton(Base):
         for day in self._thermostat.schedule.schedule_days:
             schedule[str(day.week_day)] = [
                 {
-                    "target_temperature": schedule_hour.target_temperature.friendly_value,
-                    "next_change_at": schedule_hour.next_change_at.friendly_value.isoformat(),
+                    "target_temperature": schedule_hour.target_temperature.value,
+                    "next_change_at": schedule_hour.next_change_at.value.isoformat(),
                 }
                 for schedule_hour in day.schedule_hours
             ]

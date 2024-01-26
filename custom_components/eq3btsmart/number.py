@@ -2,8 +2,6 @@
 
 from datetime import timedelta
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from eq3btsmart.const import (
     EQ3BT_MAX_OFFSET,
@@ -34,6 +32,8 @@ from .const import (
     ENTITY_NAME_WINDOW_OPEN_TEMPERATURE,
     ENTITY_NAME_WINDOW_OPEN_TIMEOUT,
 )
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 
 
 async def async_setup_entry(
@@ -102,7 +102,7 @@ class ComfortTemperature(Base):
         if self._thermostat.status.comfort_temperature is None:
             return None
 
-        return self._thermostat.status.comfort_temperature.friendly_value
+        return self._thermostat.status.comfort_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_get_info()
@@ -122,7 +122,7 @@ class EcoTemperature(Base):
         if self._thermostat.status.eco_temperature is None:
             return None
 
-        return self._thermostat.status.eco_temperature.friendly_value
+        return self._thermostat.status.eco_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_get_info()
@@ -144,7 +144,7 @@ class OffsetTemperature(Base):
         if self._thermostat.status.offset_temperature is None:
             return None
 
-        return self._thermostat.status.offset_temperature.friendly_value
+        return self._thermostat.status.offset_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
         await self._thermostat.async_temperature_offset_configure(value)
@@ -163,7 +163,7 @@ class WindowOpenTemperature(Base):
         if self._thermostat.status.window_open_temperature is None:
             return None
 
-        return self._thermostat.status.window_open_temperature.friendly_value
+        return self._thermostat.status.window_open_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
         await (
@@ -175,12 +175,12 @@ class WindowOpenTemperature(Base):
 
         await self._thermostat.async_configure_window_open(
             temperature=value,
-            duration=self._thermostat.status.window_open_time.friendly_value,
+            duration=self._thermostat.status.window_open_time.value,
         )
 
         await self._thermostat.async_configure_window_open(
             temperature=value,
-            duration=self._thermostat.status.window_open_time.friendly_value,
+            duration=self._thermostat.status.window_open_time.value,
         )
 
 
@@ -204,9 +204,7 @@ class WindowOpenTimeout(Base):
         if self._thermostat.status.window_open_time is None:
             return None
 
-        return (
-            self._thermostat.status.window_open_time.friendly_value.total_seconds() / 60
-        )
+        return self._thermostat.status.window_open_time.value.total_seconds() / 60
 
     async def async_set_native_value(self, value: float) -> None:
         await (
@@ -217,7 +215,7 @@ class WindowOpenTimeout(Base):
             return
 
         await self._thermostat.async_configure_window_open(
-            temperature=self._thermostat.status.window_open_temperature.friendly_value,
+            temperature=self._thermostat.status.window_open_temperature.value,
             duration=timedelta(minutes=value),
         )
 

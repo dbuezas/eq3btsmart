@@ -3,14 +3,14 @@ from typing import Self
 
 from construct_typed import DataclassStruct
 
+from eq3btsmart.adapter.eq3_away_time import Eq3AwayTime
+from eq3btsmart.adapter.eq3_duration import Eq3Duration
+from eq3btsmart.adapter.eq3_schedule_time import Eq3ScheduleTime
+from eq3btsmart.adapter.eq3_temperature import Eq3Temperature
+from eq3btsmart.adapter.eq3_temperature_offset import Eq3TemperatureOffset
 from eq3btsmart.const import EQ3BT_OFF_TEMP, EQ3BT_ON_TEMP, OperationMode, WeekDay
-from eq3btsmart.eq3_away_time import Eq3AwayTime
-from eq3btsmart.eq3_duration import Eq3Duration
-from eq3btsmart.eq3_schedule_time import Eq3ScheduleTime
-from eq3btsmart.eq3_temperature import Eq3Temperature
-from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
 from eq3btsmart.structures import (
-    DeviceIdStruct,
+    DeviceDataStruct,
     ScheduleDayStruct,
     StatusStruct,
 )
@@ -22,15 +22,15 @@ class DeviceData:
     device_serial: str | None = None
 
     @classmethod
-    def from_device(cls, struct: DeviceIdStruct) -> Self:
+    def from_device(cls, struct: DeviceDataStruct) -> Self:
         return cls(
             firmware_version=struct.version,
-            device_serial=struct.serial,
+            device_serial=struct.serial.value,
         )
 
     @classmethod
     def from_bytes(cls, data: bytes) -> Self:
-        return cls.from_device(DataclassStruct(DeviceIdStruct).parse(data))
+        return cls.from_device(DataclassStruct(DeviceDataStruct).parse(data))
 
 
 @dataclass
@@ -56,10 +56,10 @@ class Status:
         if self.target_temperature is None:
             return self._operation_mode
 
-        if self.target_temperature.friendly_value == EQ3BT_OFF_TEMP:
+        if self.target_temperature.value == EQ3BT_OFF_TEMP:
             return OperationMode.OFF
 
-        if self.target_temperature.friendly_value == EQ3BT_ON_TEMP:
+        if self.target_temperature.value == EQ3BT_ON_TEMP:
             return OperationMode.ON
 
         return self._operation_mode

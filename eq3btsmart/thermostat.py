@@ -17,6 +17,12 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from construct_typed import DataclassStruct
 
+from eq3btsmart.adapter.eq3_away_time import Eq3AwayTime
+from eq3btsmart.adapter.eq3_duration import Eq3Duration
+from eq3btsmart.adapter.eq3_temperature import Eq3Temperature
+from eq3btsmart.adapter.eq3_temperature_offset import Eq3TemperatureOffset
+from eq3btsmart.adapter.eq3_time import Eq3Time
+from eq3btsmart.connection_monitor import ConnectionMonitor
 from eq3btsmart.const import (
     DEFAULT_AWAY_HOURS,
     DEFAULT_AWAY_TEMP,
@@ -32,12 +38,6 @@ from eq3btsmart.const import (
     OperationMode,
     WeekDay,
 )
-from eq3btsmart.eq3_away_time import Eq3AwayTime
-from eq3btsmart.eq3_connection_monitor import Eq3ConnectionMonitor
-from eq3btsmart.eq3_duration import Eq3Duration
-from eq3btsmart.eq3_temperature import Eq3Temperature
-from eq3btsmart.eq3_temperature_offset import Eq3TemperatureOffset
-from eq3btsmart.eq3_time import Eq3Time
 from eq3btsmart.models import DeviceData, Schedule, Status
 from eq3btsmart.structures import (
     AwaySetCommand,
@@ -85,7 +85,7 @@ class Thermostat:
             timeout=REQUEST_TIMEOUT,
         )
         self._lock = asyncio.Lock()
-        self._monitor = Eq3ConnectionMonitor(self._conn)
+        self._monitor = ConnectionMonitor(self._conn)
 
     def register_connection_callback(self, on_connect: Callable) -> None:
         """Register a callback function that will be called when a connection is established."""
@@ -155,10 +155,10 @@ class Thermostat:
             raise Exception("Status not set")
 
         if comfort_temperature is None and self.status.comfort_temperature is not None:
-            comfort_temperature = self.status.comfort_temperature.friendly_value
+            comfort_temperature = self.status.comfort_temperature.value
 
         if eco_temperature is None and self.status.eco_temperature is not None:
-            eco_temperature = self.status.eco_temperature.friendly_value
+            eco_temperature = self.status.eco_temperature.value
 
         if comfort_temperature is None or eco_temperature is None:
             raise Exception("Comfort or eco temperature not set")
@@ -196,16 +196,25 @@ class Thermostat:
                 command = ModeSetCommand(mode=OperationMode.AUTO)
             case OperationMode.MANUAL:
                 temperature = max(
-                    min(self.status.target_temperature, Eq3Temperature(EQ3BT_MAX_TEMP)),
-                    Eq3Temperature(EQ3BT_MIN_TEMP),
+                    min(
+                        self.status.target_temperature.value,
+                        EQ3BT_MAX_TEMP,
+                    ),
+                    EQ3BT_MIN_TEMP,
                 )
-                command = ModeSetCommand(mode=OperationMode.MANUAL | temperature)
+                command = ModeSetCommand(
+                    mode=OperationMode.MANUAL | Eq3Temperature(temperature).encode()
+                )
             case OperationMode.OFF:
                 off_temperature = Eq3Temperature(EQ3BT_OFF_TEMP)
-                command = ModeSetCommand(mode=OperationMode.MANUAL | off_temperature)
+                command = ModeSetCommand(
+                    mode=OperationMode.MANUAL | off_temperature.encode()
+                )
             case OperationMode.ON:
                 on_temperature = Eq3Temperature(EQ3BT_ON_TEMP)
-                command = ModeSetCommand(mode=OperationMode.MANUAL | on_temperature)
+                command = ModeSetCommand(
+                    mode=OperationMode.MANUAL | on_temperature.encode()
+                )
 
         await self._async_write_command(command)
 
@@ -229,7 +238,7 @@ class Thermostat:
 
         await self._async_write_command(
             AwaySetCommand(
-                mode=OperationMode.AWAY | eq3_temperature,
+                mode=OperationMode.AWAY | eq3_temperature.encode(),
                 away_until=eq3_away_until,
             )
         )
