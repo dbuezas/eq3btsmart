@@ -12,6 +12,13 @@ def test_encode_valid_datetime():
     assert encoded == expected_bytes
 
 
+def test_encode_valid_datetime_with_minute():
+    dt = datetime(year=2022, month=6, day=15, hour=10, minute=25)
+    encoded = Eq3AwayTime._encode(dt)
+    expected_bytes = bytes([15, 22, 21, 6])
+    assert encoded == expected_bytes
+
+
 def test_decode_valid_bytes():
     encoded_bytes = bytes([15, 22, 21, 6])
     decoded = Eq3AwayTime._decode(encoded_bytes)
