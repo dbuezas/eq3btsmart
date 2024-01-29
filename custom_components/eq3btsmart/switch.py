@@ -96,6 +96,9 @@ class AwaySwitch(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_away
 
     async def set_away_until(self, away_until: datetime, temperature: float) -> None:
@@ -120,6 +123,9 @@ class BoostSwitch(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_boost
 
 

@@ -79,6 +79,7 @@ class ScheduleHourStruct(Eq3Struct):
 class ScheduleDayStruct(Eq3Struct):
     """Structure for schedule data."""
 
+    cmd: int = csfield(Const(Command.SCHEDULE_RETURN, Int8ub))
     day: WeekDay = csfield(TEnum(Int8ub, WeekDay))
     hours: list[ScheduleHourStruct] = csfield(
         GreedyRange(DataclassStruct(ScheduleHourStruct))
@@ -99,26 +100,21 @@ class DeviceDataStruct(Eq3Struct):
 
 @dataclass
 class Eq3Command(Eq3Struct):
-    """Structure for eQ-3 commands."""
+    """Structure for eQ-3 command."""
 
     cmd: int = csfield(Int8ub)
-    payload: bytes | None = csfield(Optional(GreedyBytes))
-
-    def to_bytes(self) -> bytes:
-        """Convert the command to bytes."""
-
-        return DataclassStruct(self.__class__).build(self)
+    data: bytes = csfield(GreedyBytes)
 
 
 @dataclass
-class IdGetCommand(Eq3Command):
+class IdGetCommand(Eq3Struct):
     """Structure for ID get command."""
 
     cmd: int = csfield(Const(Command.ID_GET, Int8ub))
 
 
 @dataclass
-class InfoGetCommand(Eq3Command):
+class InfoGetCommand(Eq3Struct):
     """Structure for info get command."""
 
     cmd: int = csfield(Const(Command.INFO_GET, Int8ub))
@@ -126,7 +122,7 @@ class InfoGetCommand(Eq3Command):
 
 
 @dataclass
-class ComfortEcoConfigureCommand(Eq3Command):
+class ComfortEcoConfigureCommand(Eq3Struct):
     """Structure for schedule get command."""
 
     cmd: int = csfield(Const(Command.COMFORT_ECO_CONFIGURE, Int8ub))
@@ -135,7 +131,7 @@ class ComfortEcoConfigureCommand(Eq3Command):
 
 
 @dataclass
-class OffsetConfigureCommand(Eq3Command):
+class OffsetConfigureCommand(Eq3Struct):
     """Structure for offset configure command."""
 
     cmd: int = csfield(Const(Command.OFFSET_CONFIGURE, Int8ub))
@@ -143,7 +139,7 @@ class OffsetConfigureCommand(Eq3Command):
 
 
 @dataclass
-class WindowOpenConfigureCommand(Eq3Command):
+class WindowOpenConfigureCommand(Eq3Struct):
     """Structure for window open configure command."""
 
     cmd: int = csfield(Const(Command.WINDOW_OPEN_CONFIGURE, Int8ub))
@@ -152,7 +148,7 @@ class WindowOpenConfigureCommand(Eq3Command):
 
 
 @dataclass
-class ScheduleGetCommand(Eq3Command):
+class ScheduleGetCommand(Eq3Struct):
     """Structure for schedule get command."""
 
     cmd: int = csfield(Const(Command.SCHEDULE_GET, Int8ub))
@@ -160,7 +156,7 @@ class ScheduleGetCommand(Eq3Command):
 
 
 @dataclass
-class ModeSetCommand(Eq3Command):
+class ModeSetCommand(Eq3Struct):
     """Structure for mode set command."""
 
     cmd: int = csfield(Const(Command.MODE_SET, Int8ub))
@@ -175,7 +171,7 @@ class AwaySetCommand(ModeSetCommand):
 
 
 @dataclass
-class TemperatureSetCommand(Eq3Command):
+class TemperatureSetCommand(Eq3Struct):
     """Structure for temperature set command."""
 
     cmd: int = csfield(Const(Command.TEMPERATURE_SET, Int8ub))
@@ -183,7 +179,7 @@ class TemperatureSetCommand(Eq3Command):
 
 
 @dataclass
-class ScheduleSetCommand(Eq3Command):
+class ScheduleSetCommand(Eq3Struct):
     """Structure for schedule set command."""
 
     cmd: int = csfield(Const(Command.SCHEDULE_SET, Int8ub))
@@ -194,21 +190,21 @@ class ScheduleSetCommand(Eq3Command):
 
 
 @dataclass
-class ComfortSetCommand(Eq3Command):
+class ComfortSetCommand(Eq3Struct):
     """Structure for comfort set command."""
 
     cmd: int = csfield(Const(Command.COMFORT_SET, Int8ub))
 
 
 @dataclass
-class EcoSetCommand(Eq3Command):
+class EcoSetCommand(Eq3Struct):
     """Structure for eco set command."""
 
     cmd: int = csfield(Const(Command.ECO_SET, Int8ub))
 
 
 @dataclass
-class BoostSetCommand(Eq3Command):
+class BoostSetCommand(Eq3Struct):
     """Structure for boost set command."""
 
     cmd: int = csfield(Const(Command.BOOST_SET, Int8ub))
@@ -216,7 +212,7 @@ class BoostSetCommand(Eq3Command):
 
 
 @dataclass
-class LockSetCommand(Eq3Command):
+class LockSetCommand(Eq3Struct):
     """Structure for lock set command."""
 
     cmd: int = csfield(Const(Command.LOCK_SET, Int8ub))

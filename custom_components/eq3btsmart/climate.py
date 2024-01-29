@@ -110,9 +110,11 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
     def _on_updated(self):
         self._is_available = True
 
+        if self._thermostat.status is None:
+            return
+
         if (
-            self._thermostat.status.target_temperature is not None
-            and self._target_temperature_to_set
+            self._target_temperature_to_set
             == self._thermostat.status.target_temperature.value
         ):
             self._is_setting_temperature = False
@@ -140,6 +142,9 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction | None:
+        if self._thermostat.status is None:
+            return None
+
         if self._thermostat.status.operation_mode == OperationMode.OFF:
             return HVACAction.OFF
 
@@ -154,11 +159,9 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             case CurrentTemperatureSelector.NOTHING:
                 return None
             case CurrentTemperatureSelector.VALVE:
-                if (
-                    self._thermostat.status.valve is None
-                    or self._thermostat.status.target_temperature is None
-                ):
+                if self._thermostat.status is None:
                     return None
+
                 return (
                     (1 - self._thermostat.status.valve / 100) * 2
                     + self._thermostat.status.target_temperature.value
@@ -167,6 +170,9 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             case CurrentTemperatureSelector.UI:
                 return self._target_temperature_to_set
             case CurrentTemperatureSelector.DEVICE:
+                if self._thermostat.status is None:
+                    return None
+
                 if self._thermostat.status.target_temperature is None:
                     return None
 
@@ -187,6 +193,9 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             case TargetTemperatureSelector.TARGET:
                 return self._target_temperature_to_set
             case TargetTemperatureSelector.LAST_REPORTED:
+                if self._thermostat.status is None:
+                    return None
+
                 if self._thermostat.status.target_temperature is None:
                     return None
 
@@ -240,7 +249,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode | None:
-        if self._thermostat.status.operation_mode is None:
+        if self._thermostat.status is None:
             return None
 
         return EQ_TO_HA_HVAC[self._thermostat.status.operation_mode]
@@ -251,7 +260,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 self._target_temperature_to_set = EQ3BT_OFF_TEMP
                 self._is_setting_temperature = True
             case _:
-                if self._thermostat.status.target_temperature is not None:
+                if self._thermostat.status is not None:
                     self._target_temperature_to_set = (
                         self._thermostat.status.target_temperature.value
                     )
@@ -262,6 +271,9 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
     @property
     def preset_mode(self) -> str | None:
+        if self._thermostat.status is None:
+            return None
+
         if self._thermostat.status.is_window_open:
             return Preset.WINDOW_OPEN
         if self._thermostat.status.is_boost:
@@ -270,18 +282,22 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             return Preset.LOW_BATTERY
         if self._thermostat.status.is_away:
             return Preset.AWAY
+        if self._thermostat.status.operation_mode == OperationMode.ON:
+            return Preset.OPEN
+
+        if self._thermostat.status.presets is None:
+            return None
+
         if (
             self._thermostat.status.target_temperature
-            == self._thermostat.status.eco_temperature
+            == self._thermostat.status.presets.eco_temperature
         ):
             return Preset.ECO
         if (
             self._thermostat.status.target_temperature
-            == self._thermostat.status.comfort_temperature
+            == self._thermostat.status.presets.comfort_temperature
         ):
             return Preset.COMFORT
-        if self._thermostat.status.operation_mode == OperationMode.ON:
-            return Preset.OPEN
         return PRESET_NONE
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -291,6 +307,8 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             case Preset.AWAY:
                 await self._thermostat.async_set_away(True)
             case Preset.ECO:
+                if self._thermostat.status is None:
+                    return
                 if self._thermostat.status.is_boost:
                     await self._thermostat.async_set_boost(False)
                 if self._thermostat.status.is_away:
@@ -298,6 +316,8 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
                 await self._thermostat.async_set_preset(Eq3Preset.ECO)
             case Preset.COMFORT:
+                if self._thermostat.status is None:
+                    return
                 if self._thermostat.status.is_boost:
                     await self._thermostat.async_set_boost(False)
                 if self._thermostat.status.is_away:
@@ -305,6 +325,8 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
 
                 await self._thermostat.async_set_preset(Eq3Preset.COMFORT)
             case Preset.OPEN:
+                if self._thermostat.status is None:
+                    return
                 if self._thermostat.status.is_boost:
                     await self._thermostat.async_set_boost(False)
                 if self._thermostat.status.is_away:
@@ -313,7 +335,7 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
                 await self._thermostat.async_set_mode(OperationMode.ON)
 
         # by now, the target temperature should have been (maybe set) and fetched
-        if self._thermostat.status.target_temperature is not None:
+        if self._thermostat.status is not None:
             self._target_temperature_to_set = (
                 self._thermostat.status.target_temperature.value
             )
@@ -326,7 +348,11 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
             manufacturer=MANUFACTURER,
             model=DEVICE_MODEL,
             identifiers={(DOMAIN, self._eq3_config.mac_address)},
-            sw_version=str(self._thermostat.device_data.firmware_version or "unknown"),
+            sw_version=str(
+                self._thermostat.device_data.firmware_version
+                if self._thermostat.device_data is not None
+                else "unknown"
+            ),
             connections={(CONNECTION_BLUETOOTH, self._eq3_config.mac_address)},
         )
 
@@ -334,11 +360,10 @@ class Eq3Climate(Eq3Entity, ClimateEntity):
         """Update the data from the thermostat."""
 
         try:
-            await self._thermostat.async_get_info()
+            await self._thermostat.async_get_status()
             if self._is_setting_temperature:
                 await self.async_set_temperature_now()
         except Exception as ex:
-            # self._is_available = False
             self.schedule_update_ha_state()
             _LOGGER.error(
                 f"[{self._eq3_config.name}] Error updating: {ex}",

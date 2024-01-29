@@ -99,13 +99,13 @@ class ComfortTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        if self._thermostat.status.comfort_temperature is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return None
 
-        return self._thermostat.status.comfort_temperature.value
+        return self._thermostat.status.presets.comfort_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_get_info()
+        await self._thermostat.async_get_status()
         await self._thermostat.async_configure_presets(comfort_temperature=value)
 
 
@@ -119,13 +119,13 @@ class EcoTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        if self._thermostat.status.eco_temperature is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return None
 
-        return self._thermostat.status.eco_temperature.value
+        return self._thermostat.status.presets.eco_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_get_info()
+        await self._thermostat.async_get_status()
         await self._thermostat.async_configure_presets(eco_temperature=value)
 
 
@@ -141,13 +141,13 @@ class OffsetTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        if self._thermostat.status.offset_temperature is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return None
 
-        return self._thermostat.status.offset_temperature.value
+        return self._thermostat.status.presets.offset_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._thermostat.async_temperature_offset_configure(value)
+        await self._thermostat.async_configure_temperature_offset(value)
 
 
 class WindowOpenTemperature(Base):
@@ -160,27 +160,27 @@ class WindowOpenTemperature(Base):
 
     @property
     def native_value(self) -> float | None:
-        if self._thermostat.status.window_open_temperature is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return None
 
-        return self._thermostat.status.window_open_temperature.value
+        return self._thermostat.status.presets.window_open_temperature.value
 
     async def async_set_native_value(self, value: float) -> None:
         await (
-            self._thermostat.async_get_info()
+            self._thermostat.async_get_status()
         )  # to ensure the other value is up to date
 
-        if self._thermostat.status.window_open_time is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return
 
         await self._thermostat.async_configure_window_open(
             temperature=value,
-            duration=self._thermostat.status.window_open_time.value,
+            duration=self._thermostat.status.presets.window_open_time.value,
         )
 
         await self._thermostat.async_configure_window_open(
             temperature=value,
-            duration=self._thermostat.status.window_open_time.value,
+            duration=self._thermostat.status.presets.window_open_time.value,
         )
 
 
@@ -201,21 +201,23 @@ class WindowOpenTimeout(Base):
 
     @property
     def native_value(self) -> float | None:
-        if self._thermostat.status.window_open_time is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return None
 
-        return self._thermostat.status.window_open_time.value.total_seconds() / 60
+        return (
+            self._thermostat.status.presets.window_open_time.value.total_seconds() / 60
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         await (
-            self._thermostat.async_get_info()
+            self._thermostat.async_get_status()
         )  # to ensure the other value is up to date
 
-        if self._thermostat.status.window_open_temperature is None:
+        if self._thermostat.status is None or self._thermostat.status.presets is None:
             return
 
         await self._thermostat.async_configure_window_open(
-            temperature=self._thermostat.status.window_open_temperature.value,
+            temperature=self._thermostat.status.presets.window_open_temperature.value,
             duration=timedelta(minutes=value),
         )
 

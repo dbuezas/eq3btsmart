@@ -156,6 +156,9 @@ class BatterySensor(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_low_battery
 
 
@@ -171,6 +174,9 @@ class WindowOpenSensor(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_window_open
 
 
@@ -186,4 +192,7 @@ class DSTSensor(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_dst

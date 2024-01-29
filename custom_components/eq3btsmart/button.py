@@ -157,4 +157,4 @@ class FetchButton(Base):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
-        await self._thermostat.async_get_info()
+        await self._thermostat.async_get_status()

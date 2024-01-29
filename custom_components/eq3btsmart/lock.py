@@ -70,4 +70,7 @@ class LockedSwitch(Base):
 
     @property
     def is_locked(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_locked

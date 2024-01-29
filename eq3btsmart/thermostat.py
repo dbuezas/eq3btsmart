@@ -46,6 +46,7 @@ from eq3btsmart.structures import (
     ComfortSetCommand,
     EcoSetCommand,
     Eq3Command,
+    Eq3Struct,
     IdGetCommand,
     InfoGetCommand,
     LockSetCommand,
@@ -73,8 +74,8 @@ class Thermostat:
         """Initialize the thermostat."""
 
         self.thermostat_config = thermostat_config
-        self.status: Status = Status()
-        self.device_data: DeviceData = DeviceData()
+        self.status: Status | None = None
+        self.device_data: DeviceData | None = None
         self.schedule: Schedule = Schedule()
         self._on_update_callbacks: list[Callable] = []
         self._on_connection_callbacks: list[Callable] = []
@@ -103,6 +104,8 @@ class Thermostat:
         await self._conn.connect()
         await self._conn.start_notify(NOTIFY_CHARACTERISTIC_UUID, self.on_notification)
 
+        self.on_connection()
+
         loop = asyncio.get_running_loop()
         loop.create_task(self._monitor.run())
 
@@ -117,7 +120,7 @@ class Thermostat:
 
         await self._async_write_command(IdGetCommand())
 
-    async def async_get_info(self) -> None:
+    async def async_get_status(self) -> None:
         """Query the thermostat status."""
 
         eq3_time = Eq3Time(datetime.now())
@@ -154,11 +157,11 @@ class Thermostat:
         if self.status is None:
             raise Exception("Status not set")
 
-        if comfort_temperature is None and self.status.comfort_temperature is not None:
-            comfort_temperature = self.status.comfort_temperature.value
+        if comfort_temperature is None and self.status.presets is not None:
+            comfort_temperature = self.status.presets.comfort_temperature.value
 
-        if eco_temperature is None and self.status.eco_temperature is not None:
-            eco_temperature = self.status.eco_temperature.value
+        if eco_temperature is None and self.status.presets is not None:
+            eco_temperature = self.status.presets.eco_temperature.value
 
         if comfort_temperature is None or eco_temperature is None:
             raise Exception("Comfort or eco temperature not set")
@@ -173,7 +176,7 @@ class Thermostat:
             )
         )
 
-    async def async_temperature_offset_configure(
+    async def async_configure_temperature_offset(
         self, temperature_offset: float
     ) -> None:
         """Sets the thermostat's temperature offset."""
@@ -280,6 +283,17 @@ class Thermostat:
 
         await self._async_write_command(LockSetCommand(enable=enable))
 
+    async def async_delete_schedule(self, week_day: WeekDay | None = None) -> None:
+        """Deletes the schedule."""
+
+        if week_day is not None:
+            await self._async_write_command(ScheduleSetCommand(day=week_day, hours=[]))
+        else:
+            for week_day in WeekDay:
+                await self._async_write_command(
+                    ScheduleSetCommand(day=week_day, hours=[])
+                )
+
     async def async_set_schedule(self, schedule: Schedule) -> None:
         """Sets the schedule for the given day."""
 
@@ -297,21 +311,16 @@ class Thermostat:
 
             await self._async_write_command(command)
 
-        self.schedule.merge(schedule)
-
-        for callback in self._on_update_callbacks:
-            callback()
-
-    async def _async_write_command(self, command: Eq3Command) -> None:
+    async def _async_write_command(self, command: Eq3Struct) -> None:
         """Write a EQ3 command to the thermostat."""
 
         if not self._conn.is_connected:
-            return
+            raise Exception("Not connected")
+
+        data = command.to_bytes()
 
         async with self._lock:
-            await self._conn.write_gatt_char(
-                WRITE_CHARACTERISTIC_UUID, command.to_bytes()
-            )
+            await self._conn.write_gatt_char(WRITE_CHARACTERISTIC_UUID, data)
 
             self.on_connection()
 
@@ -319,39 +328,24 @@ class Thermostat:
         for callback in self._on_connection_callbacks:
             callback()
 
-    def on_notification(self, handle: BleakGATTCharacteristic, data: bytearray) -> None:
+    def on_notification(self, handle: BleakGATTCharacteristic, data: bytes) -> None:
         """Handle Callback from a Bluetooth (GATT) request."""
 
-        updated: bool = True
         data_bytes = bytes(data)
 
         command = DataclassStruct(Eq3Command).parse(data_bytes)
 
-        if command.payload is None:
-            return
+        is_status_command = command.data[0] == 0x01
 
-        is_status_command = command.payload[0] == 0x01
-
-        try:
-            match command.cmd:
-                case Command.ID_RETURN:
-                    self.device_data = DeviceData.from_bytes(data_bytes)
-                case Command.INFO_RETURN:
-                    if is_status_command:
-                        self.status = Status.from_bytes(data_bytes)
-                case Command.SCHEDULE_RETURN:
-                    schedule = Schedule.from_bytes(data_bytes)
-                    self.schedule.merge(schedule)
-                case _:
-                    updated = False
-        except Exception:
-            _LOGGER.exception(
-                "Received: %s", " ".join([f"0x{b:02x}" for b in data_bytes])
-            )
-            updated = False
-
-        if not updated:
-            return
+        match command.cmd:
+            case Command.ID_RETURN:
+                self.device_data = DeviceData.from_bytes(data_bytes)
+            case Command.INFO_RETURN:
+                if is_status_command:
+                    self.status = Status.from_bytes(data_bytes)
+            case Command.SCHEDULE_RETURN:
+                schedule = Schedule.from_bytes(data_bytes)
+                self.schedule.merge(schedule)
 
         for callback in self._on_update_callbacks:
             callback()

@@ -38,3 +38,11 @@ def test_adapter():
     assert (
         MockAdapter.adapter()(Construct())._encode(MockAdapter("6"), Context(), "") == 6
     )
+
+
+def test_str():
+    assert str(MockAdapter("7")) == "7"
+
+
+def test_repr():
+    assert repr(MockAdapter("8")) == "MockAdapter(8)"
