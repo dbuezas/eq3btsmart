@@ -111,3 +111,35 @@ jobs:
       - name: Run mypy
         run: |
           poetry run mypy eq3btsmart custom_components/eq3btsmart
+
+  tests:
+    needs: cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Load cached Poetry installation
+        uses: actions/cache@v3
+        with:
+          path: ~/.local
+          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Load cached Poetry venv
+        uses: actions/cache@v3
+        with:
+          path: ~/.venv
+          key: poetry-venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install package
+        run: |
+          poetry install --no-interaction
+
+      - name: Run tests
+        run: |
+          poetry run pytest --cov=eq3btsmart --cov-report=xml --cov-report=term tests
