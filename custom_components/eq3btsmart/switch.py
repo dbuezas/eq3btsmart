@@ -3,7 +3,6 @@
 from datetime import datetime
 from typing import Any
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
 from eq3btsmart import Thermostat
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
@@ -23,6 +22,7 @@ from .const import (
     ENTITY_NAME_CONNECTION,
     SERVICE_SET_AWAY_UNTIL,
 )
+from .eq3_entity import Eq3Entity
 from .models import Eq3Config, Eq3ConfigEntry
 from .schemas import SCHEMA_SET_AWAY_UNTIL
 
@@ -96,6 +96,9 @@ class AwaySwitch(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_away
 
     async def set_away_until(self, away_until: datetime, temperature: float) -> None:
@@ -120,6 +123,9 @@ class BoostSwitch(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_boost
 
 

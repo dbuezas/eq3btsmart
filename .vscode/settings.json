@@ -35,5 +35,8 @@
         "**/.ruff_cache": true,
         "**/dist": true,
     },
-    "extensions.ignoreRecommendations": false
+    "extensions.ignoreRecommendations": false,
+    "python.testing.pytestArgs": [
+        "tests",
+    ]
 }

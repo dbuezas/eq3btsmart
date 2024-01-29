@@ -1,8 +1,6 @@
 """Platform for eQ-3 binary sensor entities."""
 
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -23,6 +21,8 @@ from .const import (
     ENTITY_NAME_MONITORING,
     ENTITY_NAME_WINDOW_OPEN,
 )
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 
 
 async def async_setup_entry(
@@ -156,6 +156,9 @@ class BatterySensor(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_low_battery
 
 
@@ -171,6 +174,9 @@ class WindowOpenSensor(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_window_open
 
 
@@ -186,4 +192,7 @@ class DSTSensor(Base):
 
     @property
     def is_on(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_dst

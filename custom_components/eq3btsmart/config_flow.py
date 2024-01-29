@@ -3,11 +3,6 @@
 import logging
 from typing import Any
 
-from custom_components.eq3btsmart.schemas import (
-    SCHEMA_NAME,
-    SCHEMA_NAME_MAC,
-    SCHEMA_OPTIONS,
-)
 from homeassistant import config_entries
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
@@ -31,6 +26,11 @@ from .const import (
     DEFAULT_STAY_CONNECTED,
     DEFAULT_TARGET_TEMP_SELECTOR,
     DOMAIN,
+)
+from .schemas import (
+    SCHEMA_NAME,
+    SCHEMA_NAME_MAC,
+    SCHEMA_OPTIONS,
 )
 
 _LOGGER = logging.getLogger(__name__)

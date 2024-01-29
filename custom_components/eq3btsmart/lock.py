@@ -1,8 +1,6 @@
 """Platform for eQ-3 lock entities."""
 
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
@@ -12,6 +10,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, ENTITY_NAME_LOCKED
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 
 
 async def async_setup_entry(
@@ -70,4 +70,7 @@ class LockedSwitch(Base):
 
     @property
     def is_locked(self) -> bool | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.is_locked

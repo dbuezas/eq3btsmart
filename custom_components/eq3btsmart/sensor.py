@@ -4,8 +4,6 @@ import asyncio
 import logging
 from datetime import datetime
 
-from custom_components.eq3btsmart.eq3_entity import Eq3Entity
-from custom_components.eq3btsmart.models import Eq3Config, Eq3ConfigEntry
 from eq3btsmart import Thermostat
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry, UndefinedType
@@ -26,6 +24,8 @@ from .const import (
     ENTITY_NAME_SERIAL_NUMBER,
     ENTITY_NAME_VALVE,
 )
+from .eq3_entity import Eq3Entity
+from .models import Eq3Config, Eq3ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,6 +92,9 @@ class ValveSensor(Base):
 
     @property
     def state(self) -> int | None:
+        if self._thermostat.status is None:
+            return None
+
         return self._thermostat.status.valve
 
 
@@ -107,10 +110,13 @@ class AwayEndSensor(Base):
 
     @property
     def native_value(self) -> datetime | None:
-        if self._thermostat.status.away_until is None:
+        if (
+            self._thermostat.status is None
+            or self._thermostat.status.away_until is None
+        ):
             return None
 
-        return self._thermostat.status.away_until.friendly_value
+        return self._thermostat.status.away_until.value
 
 
 class RssiSensor(Base):
@@ -141,7 +147,10 @@ class SerialNumberSensor(Base):
 
     @property
     def state(self) -> str | None:
-        return self._thermostat.device_data.device_serial
+        if self._thermostat.device_data is None:
+            return None
+
+        return self._thermostat.device_data.device_serial.value
 
 
 class FirmwareVersionSensor(Base):
@@ -166,10 +175,14 @@ class FirmwareVersionSensor(Base):
             )
             return
 
+        if self._thermostat.device_data is None:
+            return
+
         device_registry = dr.async_get(self.hass)
         device = device_registry.async_get_device(
             identifiers={(DOMAIN, self._eq3_config.mac_address)},
         )
+
         if device:
             device_registry.async_update_device(
                 device_id=device.id,
@@ -182,6 +195,9 @@ class FirmwareVersionSensor(Base):
 
     @property
     def state(self) -> str | None:
+        if self._thermostat.device_data is None:
+            return None
+
         return str(self._thermostat.device_data.firmware_version)
 
 
