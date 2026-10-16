@@ -27,7 +27,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, format_mac
 from homeassistant.helpers.entity import DeviceInfo, EntityPlatformState
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 
 from .const import (
     CONF_CURRENT_TEMP_SELECTOR,
@@ -133,6 +133,23 @@ class EQ3Climate(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         asyncio.get_event_loop().create_task(self._async_scan_loop())
+        # TEST (eq3-firmware-mod HA205): follow the external room sensor live. Without this the
+        # card's current temperature changed only when the thermostat itself updated -- once per
+        # poll, so up to an hour stale at a 60 min scan interval.
+        if (
+            self._conf_current_temp_selector == CurrentTemperatureSelector.ENTITY
+            and self._conf_external_temp_sensor
+        ):
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, [self._conf_external_temp_sensor], self._on_external_temp
+                )
+            )
+
+    @callback
+    def _on_external_temp(self, event) -> None:
+        if self.entity_id is not None:
+            self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         if self._cancel_timer:

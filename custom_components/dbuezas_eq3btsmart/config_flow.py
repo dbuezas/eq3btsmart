@@ -120,10 +120,14 @@ class EQ3ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: ConfigEntry,
     ) -> OptionsFlow:
         """Create the options flow."""
-        return OptionsFlowHandler()
+        return OptionsFlowHandler(config_entry)
 
 
 class OptionsFlowHandler(OptionsFlow):
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        pass  # TEST (eq3-firmware-mod HA199): HA supplies config_entry itself
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:

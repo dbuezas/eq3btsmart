@@ -22,6 +22,10 @@ from bleak.backends.device import BLEDevice
 REQUEST_TIMEOUT = 5
 RETRY_BACK_OFF_FACTOR = 0.25
 RETRIES = 14
+# TEST (eq3-firmware-mod HA205): with "stay connected" off, keep the link this many seconds after the
+# last request, then disconnect -- so a burst of changes shares one connect, and an idle thermostat
+# holds no link (a held link halves the advert rate a scanner receives, FINDINGS.md).
+IDLE_DISCONNECT = 10
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -61,6 +65,7 @@ class BleakConnection:
         self._connection_callbacks = []
         self.retries = 0
         self._round_robin = 0
+        self._idle_handle = None  # TEST HA205: pending idle disconnect
 
     def register_connection_callback(self, callback) -> None:
         self._connection_callbacks.append(callback)
@@ -76,6 +81,29 @@ class BleakConnection:
         )
         self._terminate_event.set()
         self._notify_event.set()
+        # TEST HA205: an idle link was left open on unload/reload, holding the thermostat.
+        self._cancel_idle()
+        if self._conn is not None and self._conn.is_connected:
+            self._hass.async_create_task(self._conn.disconnect())
+
+    def _cancel_idle(self):
+        if self._idle_handle is not None:
+            self._idle_handle.cancel()
+            self._idle_handle = None
+
+    def _arm_idle(self):
+        self._cancel_idle()
+        self._idle_handle = self._hass.loop.call_later(
+            IDLE_DISCONNECT, lambda: self._hass.async_create_task(self._async_idle_disconnect())
+        )
+
+    async def _async_idle_disconnect(self):
+        async with self._lock:  # never in the middle of a request
+            self._idle_handle = None
+            if self._conn is not None and self._conn.is_connected:
+                _LOGGER.debug("[%s] idle %s s, disconnecting", self._name, IDLE_DISCONNECT)
+                self._notify_conn = None
+                await self._conn.disconnect()
 
     async def throw_if_terminating(self):
         if self._terminate_event.is_set():
@@ -84,6 +112,10 @@ class BleakConnection:
             raise Exception("Connection cancelled by shutdown")
 
     async def async_get_connection(self):
+        # TEST (eq3-firmware-mod HA191): reuse the open link; connecting again forces
+        # habluetooth's fast connection preset on every poll.
+        if self._conn is not None and self._conn.is_connected:
+            return self._conn
         if self._adapter == Adapter.AUTO:
             self._ble_device = bluetooth.async_ble_device_from_address(
                 self._hass, self._mac, connectable=True
@@ -160,10 +192,13 @@ class BleakConnection:
     async def async_make_request(self, value, retries=RETRIES):
         """Write a GATT Command with callback - not utf-8."""
         async with self._lock:  # only one concurrent request per thermostat
+            self._cancel_idle()
             try:
                 await self._async_make_request_try(value, retries)
             finally:
                 self.retries = 0
+                if not self._stay_connected and not self._terminate_event.is_set():
+                    self._arm_idle()  # TEST HA205: disconnect after IDLE_DISCONNECT s of quiet
                 self._on_connection_event()
 
     async def _async_make_request_try(self, value, retries):
@@ -176,20 +211,25 @@ class BleakConnection:
                 conn = await self.async_get_connection()
                 self._notify_event.clear()
                 if value != "ONLY CONNECT":
-                    try:
+                    if getattr(self, '_notify_conn', None) is not conn:   # TEST HA191: once per link
                         await conn.start_notify(PROP_NTFY_UUID, self.on_notification)
-                        await conn.write_gatt_char(PROP_WRITE_UUID, value, response=True)
-                        await asyncio.wait_for(
-                            self._notify_event.wait(), REQUEST_TIMEOUT
-                        )
-                    finally:
-                        if self._stay_connected:
-                            await conn.stop_notify(PROP_NTFY_UUID)
-                        else:
-                            await conn.disconnect()
+                        self._notify_conn = conn
+                    await conn.write_gatt_char(PROP_WRITE_UUID, value, response=True)
+                    await asyncio.wait_for(
+                        self._notify_event.wait(), REQUEST_TIMEOUT
+                    )
+                    # TEST HA205: no disconnect here any more -- async_make_request arms the idle timer
                 return
             except Exception as ex:
                 await self.throw_if_terminating()
+                # TEST HA205: a failed request must not leave a half-working link that the next try
+                # (and every later poll) would reuse; drop it so the retry connects afresh.
+                if self._conn is not None and self._conn.is_connected:
+                    self._notify_conn = None
+                    try:
+                        await self._conn.disconnect()
+                    except Exception:  # noqa: BLE001
+                        pass
                 _LOGGER.debug(
                     "[%s] Broken connection [retry %s/%s]: %s",
                     self._name,
