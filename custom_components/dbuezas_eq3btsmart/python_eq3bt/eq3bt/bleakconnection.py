@@ -10,6 +10,7 @@ import asyncio
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import NO_RSSI_VALUE, establish_connection
+from bleak_retry_connector import clear_cache as clear_bluez_cache
 from ...const import Adapter
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, callback
@@ -26,6 +27,11 @@ RETRIES = 14
 # last request, then disconnect -- so a burst of changes shares one connect, and an idle thermostat
 # holds no link (a held link halves the advert rate a scanner receives, FINDINGS.md).
 IDLE_DISCONNECT = 10
+# TEST (eq3-firmware-mod HA194): a request refused with one of these right after a connect means the
+# client wrote a handle the thermostat no longer has -- the attribute table Home Assistant (and an
+# ESPHome proxy, in its flash) saved before the thermostat's firmware changed. The saved table is
+# cleared and the retry connects with a fresh discovery.
+STALE_LAYOUT_ERRORS = ("Invalid handle", "Illegal parameter", "ATT error: 0x01")
 
 # Handles in linux and BTProxy are off by 1. Using UUIDs instead for consistency
 PROP_WRITE_UUID = "3fa4585a-ce4a-3bad-db4b-b8df8179ea09"
@@ -201,8 +207,32 @@ class BleakConnection:
                     self._arm_idle()  # TEST HA205: disconnect after IDLE_DISCONNECT s of quiet
                 self._on_connection_event()
 
+    async def _async_clear_gatt_cache(self):
+        """TEST HA194: forget the saved attribute table, on the live link where possible.
+
+        Home Assistant's client clears its own copy and, through an ESPHome proxy that supports it,
+        the proxy's copy -- that part needs the link still up, which is why this runs before the
+        disconnect. The raw BlueZ client used for a fixed adapter has no such method; the library's
+        address-based call removes BlueZ's copy instead.
+        """
+        conn = self._conn
+        try:
+            if conn is not None and hasattr(conn, "clear_cache"):
+                cleared = await conn.clear_cache()
+            else:
+                cleared = await clear_bluez_cache(self._mac)
+        except Exception as err:  # noqa: BLE001
+            cleared = f"failed: {err}"
+        _LOGGER.warning(
+            "[%s] the saved GATT layout of this thermostat is stale; cleared it (%s), "
+            "reconnecting with a fresh discovery",
+            self._name,
+            cleared,
+        )
+
     async def _async_make_request_try(self, value, retries):
         self.retries = 0
+        cache_cleared = False
         while True:
             self.retries += 1
             self._on_connection_event()
@@ -222,6 +252,10 @@ class BleakConnection:
                 return
             except Exception as ex:
                 await self.throw_if_terminating()
+                # TEST HA194: once per request, and while the link is still up (see the method).
+                if not cache_cleared and any(s in str(ex) for s in STALE_LAYOUT_ERRORS):
+                    cache_cleared = True
+                    await self._async_clear_gatt_cache()
                 # TEST HA205: a failed request must not leave a half-working link that the next try
                 # (and every later poll) would reuse; drop it so the retry connects afresh.
                 if self._conn is not None and self._conn.is_connected:
