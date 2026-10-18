@@ -9,6 +9,13 @@ A modernized temporary replacement for the native Home Assistant component.
 
 ## Installation
 
+> **This is the `wip-v2.0` branch**: work in progress for thermostats on my
+> [2.0x firmware](https://github.com/dbuezas/eq3-custom-fw). It finds thermostats with a name of their
+> own (aired as `eQ3-<name>`) and keeps the link open for a short time after each request. It is
+> published as a pre-release, so HACS does not install it by default. After installing with
+> option 1 or 2 below: `HACS` > `dbuezas_eq3btsmart` > `⋮` > `Redownload`, turn on
+> `Show beta versions`, pick the newest `alpha` version, then restart Home Assistant.
+
 ### Option 1: [HACS](https://hacs.xyz/) Link
 
 1. Click [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dbuezas&category=integration&repository=eq3btsmart)
