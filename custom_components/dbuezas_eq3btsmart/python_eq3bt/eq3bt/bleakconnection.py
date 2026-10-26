@@ -108,8 +108,23 @@ class BleakConnection:
             self._idle_handle = None
             if self._conn is not None and self._conn.is_connected:
                 _LOGGER.debug("[%s] idle %s s, disconnecting", self._name, IDLE_DISCONNECT)
-                self._notify_conn = None
-                await self._conn.disconnect()
+                await self._async_drop_link()
+
+    async def _async_drop_link(self):
+        """TEST (eq3-firmware-mod HA209): disconnect, and forget the client even if that fails.
+
+        A disconnect that times out can leave bleak reporting is_connected while BlueZ has already
+        dropped the link and removed its attribute objects. A client kept in that state is reused by
+        every later try and every later poll, and each fails with "StartNotify ... doesn't exist"
+        until something else makes BlueZ signal a disconnect. A fresh client on the next try avoids it.
+        """
+        conn, self._conn = self._conn, None
+        self._notify_conn = None
+        if conn is not None and conn.is_connected:
+            try:
+                await conn.disconnect()
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("[%s] disconnect failed, client dropped anyway: %s", self._name, err)
 
     async def throw_if_terminating(self):
         if self._terminate_event.is_set():
@@ -258,12 +273,7 @@ class BleakConnection:
                     await self._async_clear_gatt_cache()
                 # TEST HA205: a failed request must not leave a half-working link that the next try
                 # (and every later poll) would reuse; drop it so the retry connects afresh.
-                if self._conn is not None and self._conn.is_connected:
-                    self._notify_conn = None
-                    try:
-                        await self._conn.disconnect()
-                    except Exception:  # noqa: BLE001
-                        pass
+                await self._async_drop_link()
                 _LOGGER.debug(
                     "[%s] Broken connection [retry %s/%s]: %s",
                     self._name,
